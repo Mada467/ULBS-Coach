@@ -1,0 +1,85 @@
+{
+  "name": "ULBS Coach - Raport Zilnic",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "081fef97-9553-4869-8cc1-527182466668",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:5000/api/statistici",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b353d83e-f420-4fab-a994-088975c96a6b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst statistici = items.map(item => item.json);\n\nconst total = statistici.length;\nconst note = {};\nstatistici.forEach(item => {\n  note[item.nota] = (note[item.nota] || 0) + 1;\n});\n\nconst notaPref = Object.keys(note).reduce((a, b) => note[a] > note[b] ? a : b, '');\n\nconst raport = `\n📊 RAPORT ZILNIC ULBS Coach\nData: ${new Date().toLocaleDateString('ro-RO')}\n\nTotal intrebari: ${total}\nNota preferata: ${notaPref}\n\nDistributie note:\n${Object.entries(note).map(([nota, count]) => `  Nota ${nota}: ${count} intrebari`).join('\\n')}\n\nUltimele intrebari:\n${statistici.slice(0, 5).map(s => `  - ${s.intrebare} (Nota ${s.nota})`).join('\\n')}\n`;\n\nreturn [{ json: { raport, total, notaPref } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "71a7f2f1-d23f-4b47-842a-9f943f1e1bfb",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "76f4d1d5-24c0-4d22-bcce-3ead3d925afa",
+  "meta": {
+    "instanceId": "ad46f50375ffa6da207c2bc410838918e606b414dba93c50e2fa529ed92d7f85"
+  },
+  "id": "UH1RbfPprQGID7Tq",
+  "tags": []
+}
