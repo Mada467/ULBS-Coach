@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from database import get_connection
 from ai_service import get_raspuns
+from cartonase import genereaza_cartonase
 import os
 
 load_dotenv()
@@ -51,6 +52,21 @@ def statistici():
         conn.close()
         result = [{'intrebare': r[0], 'nota': r[1], 'data': str(r[2])} for r in rows]
         return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/cartonase', methods=['POST'])
+def cartonase():
+    data = request.get_json()
+    topic = data.get('topic')
+    numar = data.get('numar', 5)
+    
+    if not topic:
+        return jsonify({'error': 'Topicul lipseste!'}), 400
+    
+    try:
+        cartonase_list = genereaza_cartonase(topic, numar)
+        return jsonify({'cartonase': cartonase_list})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

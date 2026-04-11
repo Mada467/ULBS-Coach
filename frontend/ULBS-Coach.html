@@ -133,7 +133,38 @@
             </div>
             <div id="istoricul" class="istoricul"></div>
         </div>
+     <div class="card cartonase-card" id="cartonase-card">
+    <div class="stat-header">
+        <h2>Cartonase de Studiu</h2>
+        <span class="card-badge" style="position:static">Nou</span>
+    </div>
 
+    <div class="cartonase-input">
+        <input type="text" id="topic-input" placeholder="Ex: mostenire, polimorfism, clase..."/>
+        <div class="cartonase-controls">
+            <select id="numar-cartonase">
+                <option value="3">3 cartonase</option>
+                <option value="5" selected>5 cartonase</option>
+                <option value="10">10 cartonase</option>
+            </select>
+            <button id="genereaza-btn" onclick="genereazaCartonase()">Genereaza</button>
+        </div>
+    </div>
+
+    <div id="cartonase-container"></div>
+</div>
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h3 id="modal-intrebare"></h3>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-dificultate">
+            <span id="modal-dificultate-badge"></span>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
     </main>
 
     <script src="ULBS-Coach.js"></script>

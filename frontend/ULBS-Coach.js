@@ -80,11 +80,11 @@ function showRaspuns(raspuns, intrebare) {
     const badge = document.getElementById('raspuns-nivel-badge');
 
     text.innerHTML = raspuns
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
     badge.textContent = `Nota ${notaSelectata}`;
     card.style.display = 'block';
 
@@ -188,3 +188,90 @@ function showToast(message, type = 'success') {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
+
+async function genereazaCartonase() {
+    const topic = document.getElementById('topic-input').value.trim();
+    const numar = document.getElementById('numar-cartonase').value;
+
+    if (!topic) {
+        showToast('Scrie un topic mai intai!', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('genereaza-btn');
+    btn.disabled = true;
+    btn.textContent = 'Se genereaza...';
+
+    try {
+        const response = await fetch(`${API_URL}/api/cartonase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic, numar: parseInt(numar) })
+        });
+
+        const data = await response.json();
+
+        if (data.cartonase) {
+            afiseazaCartonase(data.cartonase);
+            showToast(`${data.cartonase.length} cartonase generate!`, 'success');
+        } else {
+            showToast('Eroare la generare!', 'error');
+        }
+    } catch (err) {
+        showToast('Serverul nu raspunde!', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Genereaza';
+}
+
+function afiseazaCartonase(cartonase) {
+    const container = document.getElementById('cartonase-container');
+
+    window.cartonaseData = cartonase;
+
+    container.innerHTML = cartonase.map((c, i) => `
+        <div class="cartonas" id="cartonas-${i}" onclick="openModal(${i})">
+            <div class="cartonas-front">
+                <span class="cartonas-intrebare">${i+1}. ${c.intrebare}</span>
+                <span class="cartonas-dificultate dificultate-${c.dificultate}">${c.dificultate}</span>
+                <span class="cartonas-arrow">▶</span>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('cartonase-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function openModal(index) {
+    const c = window.cartonaseData[index];
+
+    document.getElementById('modal-intrebare').textContent = c.intrebare;
+
+    const badge = document.getElementById('modal-dificultate-badge');
+    badge.textContent = c.dificultate;
+    badge.className = `cartonas-dificultate dificultate-${c.dificultate}`;
+
+    const body = document.getElementById('modal-body');
+    let raspuns = c.raspuns
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/```(\w+)?\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+
+    body.innerHTML = '<p>' + raspuns + '</p>';
+
+    document.getElementById('modal-overlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
