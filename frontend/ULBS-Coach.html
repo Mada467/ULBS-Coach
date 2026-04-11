@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULBS Coach - Asistent AI</title>
+    <link rel="stylesheet" href="ULBS-Coach.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="nav-logo">UC</div>
+            <div>
+                <span class="nav-title">ULBS Coach</span>
+                <span class="nav-subtitle">Asistent AI pentru Studenti</span>
+            </div>
+        </div>
+        <div class="nav-status">
+            <span class="status-dot"></span>
+            <span>AI Online</span>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>Invata mai inteligent,<br>nu mai mult.</h1>
+        <p>Raspunsuri personalizate din cartea profesorului tau, la nivelul notei pe care ti-o doresti.</p>
+    </div>
+
+    <main class="container">
+
+        <div class="cards-grid">
+            <div class="card materie-card active" data-materie="POO">
+                <div class="card-icon">💻</div>
+                <div class="card-info">
+                    <h3>Programare OO</h3>
+                    <p>Breazu Macarie</p>
+                </div>
+                <div class="card-badge">Activ</div>
+            </div>
+            <div class="card materie-card disabled">
+                <div class="card-icon">🔒</div>
+                <div class="card-info">
+                    <h3>Alta Materie</h3>
+                    <p>In curand...</p>
+                </div>
+            </div>
+            <div class="card materie-card disabled">
+                <div class="card-icon">🔒</div>
+                <div class="card-info">
+                    <h3>Alta Materie</h3>
+                    <p>In curand...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card coach-card">
+            <div class="coach-header">
+                <h2>Intreaba Profesorul AI</h2>
+                <div class="nota-selector">
+                    <span class="nota-label">Nivel raspuns:</span>
+                    <div class="nota-buttons">
+                        <button class="nota-btn" data-nota="5-6">
+                            <span class="nota-num">5-6</span>
+                            <span class="nota-desc">Baza</span>
+                        </button>
+                        <button class="nota-btn selected" data-nota="7-8">
+                            <span class="nota-num">7-8</span>
+                            <span class="nota-desc">Complet</span>
+                        </button>
+                        <button class="nota-btn" data-nota="9-10">
+                            <span class="nota-num">9-10</span>
+                            <span class="nota-desc">Detaliat</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="intrebari-rapide">
+                <span class="ir-label">Intrebari rapide:</span>
+                <button class="ir-btn" onclick="setIntrebare('Ce este o clasa in POO?')">Ce este o clasa?</button>
+                <button class="ir-btn" onclick="setIntrebare('Explica mostenirea in POO')">Mostenire</button>
+                <button class="ir-btn" onclick="setIntrebare('Ce este polimorfismul?')">Polimorfism</button>
+                <button class="ir-btn" onclick="setIntrebare('Ce este incapsularea?')">Incapsulare</button>
+            </div>
+
+            <div class="input-area">
+                <textarea id="intrebare-input" placeholder="Scrie intrebarea ta aici... Ex: Ce este mostenirea in POO si cum se aplica?"></textarea>
+                <div class="input-actions">
+                    <span id="char-count">0 / 500</span>
+                    <button id="intreaba-btn" onclick="intreaba()">
+                        <span id="btn-text">Intreaba AI</span>
+                        <span id="btn-spinner" style="display:none">Se gandeste...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card raspuns-card" id="raspuns-card" style="display:none">
+            <div class="raspuns-header">
+                <div class="raspuns-avatar">AI</div>
+                <div>
+                    <h3>Prof. ULBS Coach</h3>
+                    <span id="raspuns-nivel-badge" class="nivel-badge"></span>
+                </div>
+                <button class="copy-btn" onclick="copyRaspuns()">Copiaza</button>
+            </div>
+            <div id="raspuns-text" class="raspuns-text"></div>
+            <div class="raspuns-footer">
+                <span>Sursa: Breazu Macarie - POO</span>
+                <button class="new-btn" onclick="newIntrebare()">Intrebare noua</button>
+            </div>
+        </div>
+
+        <div class="card statistici-card">
+            <div class="stat-header">
+                <h2>Activitatea Ta</h2>
+                <button onclick="loadStatistici()">Actualizeaza</button>
+            </div>
+            <div class="stat-numbers">
+                <div class="stat-box">
+                    <span id="total-intrebari">0</span>
+                    <label>Intrebari totale</label>
+                </div>
+                <div class="stat-box">
+                    <span id="nota-preferata">-</span>
+                    <label>Nivel preferat</label>
+                </div>
+                <div class="stat-box">
+                    <span id="azi-intrebari">0</span>
+                    <label>Azi</label>
+                </div>
+            </div>
+            <div id="istoricul" class="istoricul"></div>
+        </div>
+
+    </main>
+
+    <script src="ULBS-Coach.js"></script>
+</body>
+</html>
