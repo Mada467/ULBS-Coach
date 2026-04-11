@@ -1,6 +1,8 @@
 flask
 flask-cors
-google-generativeai
+google-genai
 pymysql
 python-dotenv
-PyPDF2
+PyMuPDF
+pytesseract
+pillow

@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=ulbs_coach
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=ulbs_coach
+    ports:
+      - 3307:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/ulbs_coach.sql:/docker-entrypoint-initdb.d/ulbs_coach.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+volumes:
+  mysql_data:
