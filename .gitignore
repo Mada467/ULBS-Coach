@@ -1,0 +1,5 @@
+backend/.env
+backend/carte_poo.txt
+backend/__pycache__/
+backend/Macarie Breazu - Programare Orientata pe Obiecte. Principii.pdf
+*.pyc
