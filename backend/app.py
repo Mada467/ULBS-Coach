@@ -12,6 +12,37 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+def verifica_etica(intrebare):
+    prompt = f"""
+    Esti un sistem de moderare pentru o aplicatie educationala de POO la ULBS.
+    
+    Verifica daca aceasta intrebare este:
+    1. Relevanta pentru Programare Orientata pe Obiecte sau informatica
+    2. Adecvata pentru un mediu educational
+    3. Nu contine limbaj ofensator sau nepotrivit
+    
+    INTREBARE: {intrebare}
+    
+    Raspunde DOAR cu JSON valid:
+    {{
+        "permisa": true,
+        "motiv": "Explicatie scurta"
+    }}
+    """
+    
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt
+    )
+    
+    text = response.text.strip()
+    if '```json' in text:
+        text = text.split('```json')[1].split('```')[0].strip()
+    elif '```' in text:
+        text = text.split('```')[1].split('```')[0].strip()
+    
+    return json.loads(text)
+
 @app.route('/')
 def home():
     return jsonify({'status': 'ULBS Coach API functioneaza!'})
@@ -24,6 +55,16 @@ def intreaba():
     
     if not intrebare:
         return jsonify({'error': 'Intrebarea lipseste!'}), 400
+    
+    try:
+        etica = verifica_etica(intrebare)
+        if not etica.get('permisa', True):
+            return jsonify({
+                'error': 'intrebare_nepermisa',
+                'motiv': etica.get('motiv', 'Intrebarea nu este relevanta pentru aceasta materie.')
+            }), 400
+    except Exception as e:
+        print(f"Eroare verificare etica: {e}")
     
     raspuns = get_raspuns(intrebare, nivel_nota)
     

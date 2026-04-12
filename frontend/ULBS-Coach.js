@@ -60,10 +60,13 @@ async function intreaba() {
 
         const data = await response.json();
 
-        if (data.raspuns) {
+       if (data.raspuns) {
             showRaspuns(data.raspuns, intrebare);
             loadStatistici();
             showToast('Raspuns generat cu succes!', 'success');
+        } else if (data.error === 'intrebare_nepermisa') {
+            showToast('Intrebare nepermisa!', 'error');
+            showMesajEtica(data.motiv);
         } else {
             showToast('Eroare la generarea raspunsului!', 'error');
         }
@@ -88,6 +91,30 @@ function showRaspuns(raspuns, intrebare) {
     badge.textContent = `Nota ${notaSelectata}`;
     card.style.display = 'block';
 
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function showMesajEtica(motiv) {
+    const card = document.getElementById('raspuns-card');
+    const text = document.getElementById('raspuns-text');
+    const badge = document.getElementById('raspuns-nivel-badge');
+
+    badge.textContent = 'Intrebare nepermisa';
+    badge.style.background = 'rgba(233,69,96,0.15)';
+    badge.style.color = '#e94560';
+    badge.style.border = '1px solid rgba(233,69,96,0.3)';
+
+    text.innerHTML = `
+        <div style="text-align: center; padding: 1rem;">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+            <h3 style="color: var(--highlight); margin-bottom: 0.5rem;">Intrebare nepermisa!</h3>
+            <p style="color: var(--text-muted); font-size: 14px;">${motiv}</p>
+            <p style="color: var(--text-muted); font-size: 13px; margin-top: 1rem;">
+                Te rugam sa pui intrebari legate de <strong style="color: var(--text)">Programare Orientata pe Obiecte</strong>.
+            </p>
+        </div>
+    `;
+
+    card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
