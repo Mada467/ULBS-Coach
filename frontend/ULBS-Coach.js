@@ -275,3 +275,180 @@ function closeModal() {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
 });
+let quizData = {
+    intrebari: [],
+    indexCurent: 0,
+    scorTotal: 0,
+    numarIntrebari: 0
+};
+
+async function startQuiz() {
+    const topic = document.getElementById('quiz-topic-input').value.trim();
+    const numar = parseInt(document.getElementById('quiz-numar').value);
+
+    if (!topic) {
+        showToast('Scrie un topic mai intai!', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('start-quiz-btn');
+    btn.disabled = true;
+    btn.textContent = 'Se genereaza...';
+
+    try {
+        const response = await fetch(`${API_URL}/api/cartonase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic, numar })
+        });
+
+        const data = await response.json();
+
+        if (data.cartonase) {
+            quizData.intrebari = data.cartonase;
+            quizData.indexCurent = 0;
+            quizData.scorTotal = 0;
+            quizData.numarIntrebari = data.cartonase.length;
+
+            document.getElementById('quiz-start').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'block';
+            document.getElementById('quiz-feedback').style.display = 'none';
+            document.getElementById('quiz-rezultat-final').style.display = 'none';
+
+            afiseazaIntrebare();
+            showToast('Quiz generat! Succes!', 'success');
+        } else {
+            showToast('Eroare la generare!', 'error');
+        }
+    } catch (err) {
+        showToast('Serverul nu raspunde!', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Incepe Quiz';
+}
+
+function afiseazaIntrebare() {
+    const idx = quizData.indexCurent;
+    const total = quizData.numarIntrebari;
+    const intrebare = quizData.intrebari[idx];
+
+    document.getElementById('quiz-progress-text').textContent = `Intrebarea ${idx + 1} din ${total}`;
+    document.getElementById('quiz-progress-fill').style.width = `${((idx) / total) * 100}%`;
+    document.getElementById('quiz-intrebare').textContent = intrebare.intrebare;
+    document.getElementById('quiz-raspuns-input').value = '';
+    document.getElementById('quiz-char-count').textContent = '0 / 1000';
+
+    document.getElementById('quiz-container').style.display = 'block';
+    document.getElementById('quiz-feedback').style.display = 'none';
+}
+
+async function submitRaspuns() {
+    const raspunsStudent = document.getElementById('quiz-raspuns-input').value.trim();
+
+    if (!raspunsStudent) {
+        showToast('Scrie un raspuns mai intai!', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('quiz-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Se evalueaza...';
+
+    const intrebareCurenta = quizData.intrebari[quizData.indexCurent];
+
+    try {
+        const response = await fetch(`${API_URL}/api/quiz/evalueaza`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                intrebare: intrebareCurenta.intrebare,
+                raspuns_student: raspunsStudent,
+                raspuns_corect: intrebareCurenta.raspuns
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.nota !== undefined) {
+            quizData.scorTotal += data.nota;
+            afiseazaFeedback(data, intrebareCurenta.raspuns);
+        } else {
+            showToast('Eroare la evaluare!', 'error');
+        }
+    } catch (err) {
+        showToast('Serverul nu raspunde!', 'error');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Trimite Raspuns';
+}
+
+function afiseazaFeedback(rezultat, raspunsCorect) {
+    const esteCorect = rezultat.nota >= 6;
+    const clasa = esteCorect ? 'feedback-corect' : 'feedback-gresit';
+
+    document.getElementById('quiz-feedback-content').innerHTML = `
+        <div class="${clasa}" style="padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+            <div class="feedback-nota">${rezultat.nota}/10</div>
+            <p><strong>Feedback:</strong> ${rezultat.feedback}</p>
+        </div>
+        <div style="background: rgba(0,212,170,0.05); border: 1px solid rgba(0,212,170,0.2); border-radius: 10px; padding: 1rem;">
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem;">RASPUNS CORECT:</p>
+            <p style="font-size: 14px; color: var(--text);">${raspunsCorect}</p>
+        </div>
+    `;
+
+    const esteUltima = quizData.indexCurent === quizData.numarIntrebari - 1;
+    const nextBtn = document.getElementById('quiz-next-btn');
+    nextBtn.textContent = esteUltima ? 'Vezi Rezultatul Final' : 'Urmatoarea Intrebare';
+
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('quiz-feedback').style.display = 'block';
+}
+
+function nextIntrebare() {
+    quizData.indexCurent++;
+
+    if (quizData.indexCurent >= quizData.numarIntrebari) {
+        afiseazaRezultatFinal();
+    } else {
+        afiseazaIntrebare();
+        document.getElementById('quiz-feedback').style.display = 'none';
+        document.getElementById('quiz-container').style.display = 'block';
+    }
+}
+
+function afiseazaRezultatFinal() {
+    const scorMediu = Math.round(quizData.scorTotal / quizData.numarIntrebari);
+    let mesaj = '';
+
+    if (scorMediu >= 9) mesaj = 'Exceptional! Esti pregatit pentru examen!';
+    else if (scorMediu >= 7) mesaj = 'Foarte bine! Mai studiaza putin si esti gata!';
+    else if (scorMediu >= 5) mesaj = 'Bine! Continua sa studiezi!';
+    else mesaj = 'Mai ai de invatat. Nu te descuraja!';
+
+    document.getElementById('quiz-scor-mare').textContent = `${scorMediu}/10`;
+    document.getElementById('quiz-mesaj-final').textContent = mesaj;
+
+    document.getElementById('quiz-feedback').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('quiz-rezultat-final').style.display = 'flex';
+
+    document.getElementById('quiz-progress-fill').style.width = '100%';
+}
+
+function resetQuiz() {
+    quizData = { intrebari: [], indexCurent: 0, scorTotal: 0, numarIntrebari: 0 };
+    document.getElementById('quiz-start').style.display = 'block';
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('quiz-feedback').style.display = 'none';
+    document.getElementById('quiz-rezultat-final').style.display = 'none';
+    document.getElementById('quiz-topic-input').value = '';
+    document.getElementById('quiz-progress-fill').style.width = '0%';
+}
+
+document.getElementById('quiz-raspuns-input') && document.getElementById('quiz-raspuns-input').addEventListener('input', () => {
+    const len = document.getElementById('quiz-raspuns-input').value.length;
+    document.getElementById('quiz-char-count').textContent = `${len} / 1000`;
+});

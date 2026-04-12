@@ -2,9 +2,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from database import get_connection
-from ai_service import get_raspuns
+from ai_service import get_raspuns, client
 from cartonase import genereaza_cartonase
 import os
+import json
 
 load_dotenv()
 
@@ -67,6 +68,50 @@ def cartonase():
     try:
         cartonase_list = genereaza_cartonase(topic, numar)
         return jsonify({'cartonase': cartonase_list})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/quiz/evalueaza', methods=['POST'])
+def evalueaza_raspuns():
+    data = request.get_json()
+    intrebare = data.get('intrebare')
+    raspuns_student = data.get('raspuns_student')
+    raspuns_corect = data.get('raspuns_corect')
+    
+    if not intrebare or not raspuns_student:
+        return jsonify({'error': 'Date incomplete!'}), 400
+    
+    try:
+        prompt = f"""
+        Esti un profesor de POO la ULBS.
+        Evalueaza raspunsul studentului la urmatoarea intrebare.
+        
+        INTREBARE: {intrebare}
+        RASPUNS CORECT: {raspuns_corect}
+        RASPUNS STUDENT: {raspuns_student}
+        
+        Dai o nota de la 1 la 10 si un feedback scurt.
+        Raspunde DOAR cu JSON valid:
+        {{
+            "nota": 8,
+            "feedback": "Feedback aici",
+            "corect": true
+        }}
+        """
+        
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        
+        text = response.text.strip()
+        if '```json' in text:
+            text = text.split('```json')[1].split('```')[0].strip()
+        elif '```' in text:
+            text = text.split('```')[1].split('```')[0].strip()
+        
+        rezultat = json.loads(text)
+        return jsonify(rezultat)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

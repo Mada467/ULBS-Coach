@@ -133,39 +133,90 @@
             </div>
             <div id="istoricul" class="istoricul"></div>
         </div>
-     <div class="card cartonase-card" id="cartonase-card">
-    <div class="stat-header">
-        <h2>Cartonase de Studiu</h2>
-        <span class="card-badge" style="position:static">Nou</span>
-    </div>
 
-    <div class="cartonase-input">
-        <input type="text" id="topic-input" placeholder="Ex: mostenire, polimorfism, clase..."/>
-        <div class="cartonase-controls">
-            <select id="numar-cartonase">
-                <option value="3">3 cartonase</option>
-                <option value="5" selected>5 cartonase</option>
-                <option value="10">10 cartonase</option>
-            </select>
-            <button id="genereaza-btn" onclick="genereazaCartonase()">Genereaza</button>
+        <div class="card cartonase-card" id="cartonase-card">
+            <div class="stat-header">
+                <h2>Cartonase de Studiu</h2>
+                <span class="card-badge" style="position:static">Nou</span>
+            </div>
+            <div class="cartonase-input">
+                <input type="text" id="topic-input" placeholder="Ex: mostenire, polimorfism, clase..."/>
+                <div class="cartonase-controls">
+                    <select id="numar-cartonase">
+                        <option value="3">3 cartonase</option>
+                        <option value="5" selected>5 cartonase</option>
+                        <option value="10">10 cartonase</option>
+                    </select>
+                    <button id="genereaza-btn" onclick="genereazaCartonase()">Genereaza</button>
+                </div>
+            </div>
+            <div id="cartonase-container"></div>
         </div>
-    </div>
 
-    <div id="cartonase-container"></div>
-</div>
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="modal-header">
-            <h3 id="modal-intrebare"></h3>
-            <button class="modal-close" onclick="closeModal()">✕</button>
+        <div class="card quiz-card">
+            <div class="stat-header">
+                <h2>Mode Quiz</h2>
+                <span class="card-badge" style="position:static; background: rgba(245,166,35,0.15); color: var(--gold); border-color: rgba(245,166,35,0.3);">Beta</span>
+            </div>
+
+            <div id="quiz-start" class="quiz-start">
+                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 1rem;">Testeaza-ti cunostintele! AI-ul genereaza intrebari si iti evalueaza raspunsurile.</p>
+                <div class="cartonase-input">
+                    <input type="text" id="quiz-topic-input" placeholder="Ex: polimorfism, clase, mostenire..."/>
+                    <div class="cartonase-controls">
+                        <select id="quiz-numar">
+                            <option value="3">3 intrebari</option>
+                            <option value="5" selected>5 intrebari</option>
+                        </select>
+                        <button id="start-quiz-btn" onclick="startQuiz()">Incepe Quiz</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="quiz-container" style="display:none">
+                <div class="quiz-progress">
+                    <span id="quiz-progress-text">Intrebarea 1 din 5</span>
+                    <div class="quiz-progress-bar">
+                        <div id="quiz-progress-fill"></div>
+                    </div>
+                </div>
+                <div class="quiz-intrebare-card">
+                    <h3 id="quiz-intrebare"></h3>
+                </div>
+                <textarea id="quiz-raspuns-input" placeholder="Scrie raspunsul tau aici..." rows="4"></textarea>
+                <div class="input-actions">
+                    <span id="quiz-char-count">0 / 1000</span>
+                    <button id="quiz-submit-btn" onclick="submitRaspuns()">Trimite Raspuns</button>
+                </div>
+            </div>
+
+            <div id="quiz-feedback" style="display:none" class="quiz-feedback-container">
+                <div id="quiz-feedback-content"></div>
+                <button class="new-btn" onclick="nextIntrebare()" id="quiz-next-btn">Urmatoarea Intrebare</button>
+            </div>
+
+            <div id="quiz-rezultat-final" style="display:none" class="quiz-rezultat-final">
+                <h3>Quiz Finalizat!</h3>
+                <div class="quiz-scor-mare" id="quiz-scor-mare"></div>
+                <p id="quiz-mesaj-final"></p>
+                <button onclick="resetQuiz()">Incearca din nou</button>
+            </div>
         </div>
-        <div class="modal-dificultate">
-            <span id="modal-dificultate-badge"></span>
-        </div>
-        <div class="modal-body" id="modal-body"></div>
-    </div>
-</div>
+
     </main>
+
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-intrebare"></h3>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-dificultate">
+                <span id="modal-dificultate-badge"></span>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
 
     <script src="ULBS-Coach.js"></script>
 </body>
