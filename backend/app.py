@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from database import get_connection
@@ -11,6 +11,14 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+@app.route('/app')
+def frontend():
+    return send_from_directory('frontend', 'ULBS-Coach.html')
+
+@app.route('/app/<path:filename>')
+def frontend_static(filename):
+    return send_from_directory('frontend', filename)
 
 def verifica_etica(intrebare):
     prompt = f"""
@@ -156,4 +164,4 @@ def evalueaza_raspuns():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-app.run(debug=True, port=5000)
+app.run(host='0.0.0.0', port=5000, debug=True)
