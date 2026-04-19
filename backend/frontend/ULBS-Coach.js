@@ -1,12 +1,47 @@
 const API_URL = 'http://localhost:5000';
 let notaSelectata = '7-8';
+let materieSelectata = 'POO';
 
 document.addEventListener('DOMContentLoaded', () => {
     initNotaButtons();
     initTextarea();
     loadStatistici();
+    selectMaterie('POO');
 });
 
+// ===== SELECTIE MATERIE =====
+function selectMaterie(materie) {
+    materieSelectata = materie;
+
+    // Actualizeaza cardurile
+    document.querySelectorAll('.materie-card').forEach(card => {
+        card.classList.remove('selectata');
+    });
+    const cardSelectat = document.querySelector(`.materie-card[data-materie="${materie}"]`);
+    if (cardSelectat) cardSelectat.classList.add('selectata');
+
+    // Actualizeaza bara de materie activa
+    const icoane = { 'POO': '💻', 'SO': '🖥️' };
+    const nume = { 'POO': 'Programare Orientata pe Obiecte', 'SO': 'Sisteme de Operare' };
+    document.getElementById('materie-activa-icon').textContent = icoane[materie] || '📚';
+    document.getElementById('materie-activa-nume').textContent = nume[materie] || materie;
+
+    // Afiseaza intrebarile rapide corecte
+    document.getElementById('intrebari-rapide-POO').style.display = materie === 'POO' ? 'flex' : 'none';
+    document.getElementById('intrebari-rapide-SO').style.display = materie === 'SO' ? 'flex' : 'none';
+
+    // Actualizeaza placeholder textarea
+    const placeholders = {
+        'POO': 'Scrie intrebarea ta despre POO... Ex: Ce este mostenirea?',
+        'SO': 'Scrie intrebarea ta despre SO... Ex: Ce este un deadlock?'
+    };
+    document.getElementById('intrebare-input').placeholder = placeholders[materie] || 'Scrie intrebarea ta...';
+
+    // Ascunde raspunsul anterior
+    document.getElementById('raspuns-card').style.display = 'none';
+}
+
+// ===== NOTA BUTTONS =====
 function initNotaButtons() {
     document.querySelectorAll('.nota-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -17,13 +52,14 @@ function initNotaButtons() {
     });
 }
 
+// ===== TEXTAREA =====
 function initTextarea() {
     const textarea = document.getElementById('intrebare-input');
     const charCount = document.getElementById('char-count');
     textarea.addEventListener('input', () => {
         const len = textarea.value.length;
         charCount.textContent = `${len} / 500`;
-        if (len > 450) charCount.style.color = '#e94560';
+        if (len > 450) charCount.style.color = '#cc0000';
         else charCount.style.color = '';
     });
 
@@ -38,6 +74,7 @@ function setIntrebare(text) {
     document.getElementById('intrebare-input').focus();
 }
 
+// ===== INTREABA AI =====
 async function intreaba() {
     const intrebare = document.getElementById('intrebare-input').value.trim();
     if (!intrebare) {
@@ -52,7 +89,10 @@ async function intreaba() {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_URL}/api/intreaba`, {
+        // Alege endpoint-ul in functie de materie
+        const endpoint = materieSelectata === 'SO' ? '/api/so/intreaba' : '/api/intreaba';
+
+        const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ intrebare, nivel_nota: notaSelectata })
@@ -60,7 +100,7 @@ async function intreaba() {
 
         const data = await response.json();
 
-       if (data.raspuns) {
+        if (data.raspuns) {
             showRaspuns(data.raspuns, intrebare);
             loadStatistici();
             showToast('Raspuns generat cu succes!', 'success');
@@ -81,6 +121,7 @@ function showRaspuns(raspuns, intrebare) {
     const card = document.getElementById('raspuns-card');
     const text = document.getElementById('raspuns-text');
     const badge = document.getElementById('raspuns-nivel-badge');
+    const sursa = document.getElementById('raspuns-sursa');
 
     text.innerHTML = raspuns
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -88,29 +129,35 @@ function showRaspuns(raspuns, intrebare) {
         .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
         .replace(/`(.*?)`/g, '<code>$1</code>')
         .replace(/\n/g, '<br>');
-    badge.textContent = `Nota ${notaSelectata}`;
-    card.style.display = 'block';
 
+    badge.textContent = `Nota ${notaSelectata}`;
+
+    // Actualizeaza sursa in functie de materie
+    const surse = {
+        'POO': 'Sursa: Breazu Macarie - Programare OO',
+        'SO': 'Sursa: Silberschatz - Operating System Concepts'
+    };
+    sursa.textContent = surse[materieSelectata] || 'Sursa: ULBS Coach AI';
+
+    card.style.display = 'block';
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
 function showMesajEtica(motiv) {
     const card = document.getElementById('raspuns-card');
     const text = document.getElementById('raspuns-text');
     const badge = document.getElementById('raspuns-nivel-badge');
 
     badge.textContent = 'Intrebare nepermisa';
-    badge.style.background = 'rgba(233,69,96,0.15)';
-    badge.style.color = '#e94560';
-    badge.style.border = '1px solid rgba(233,69,96,0.3)';
+    badge.style.background = 'rgba(204,0,0,0.15)';
+    badge.style.color = '#e66666';
+    badge.style.border = '1px solid rgba(204,0,0,0.3)';
 
     text.innerHTML = `
         <div style="text-align: center; padding: 1rem;">
             <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
-            <h3 style="color: var(--highlight); margin-bottom: 0.5rem;">Intrebare nepermisa!</h3>
+            <h3 style="color: #e66666; margin-bottom: 0.5rem;">Intrebare nepermisa!</h3>
             <p style="color: var(--text-muted); font-size: 14px;">${motiv}</p>
-            <p style="color: var(--text-muted); font-size: 13px; margin-top: 1rem;">
-                Te rugam sa pui intrebari legate de <strong style="color: var(--text)">Programare Orientata pe Obiecte</strong>.
-            </p>
         </div>
     `;
 
@@ -133,6 +180,7 @@ function copyRaspuns() {
     });
 }
 
+// ===== STATISTICI =====
 async function loadStatistici() {
     try {
         const response = await fetch(`${API_URL}/api/statistici`);
@@ -181,6 +229,7 @@ function formatData(dataStr) {
     return d.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// ===== LOADING =====
 function setLoading(active) {
     const btn = document.getElementById('intreaba-btn');
     const btnText = document.getElementById('btn-text');
@@ -191,6 +240,7 @@ function setLoading(active) {
     btnSpinner.style.display = active ? 'inline' : 'none';
 }
 
+// ===== TOAST =====
 function showToast(message, type = 'success') {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
@@ -201,21 +251,23 @@ function showToast(message, type = 'success') {
         position: fixed;
         bottom: 2rem;
         right: 2rem;
-        background: ${type === 'success' ? 'rgba(0,212,170,0.15)' : 'rgba(233,69,96,0.15)'};
-        border: 1px solid ${type === 'success' ? 'rgba(0,212,170,0.3)' : 'rgba(233,69,96,0.3)'};
-        color: ${type === 'success' ? '#00d4aa' : '#e94560'};
+        background: ${type === 'success' ? 'rgba(0,200,150,0.15)' : 'rgba(204,0,0,0.15)'};
+        border: 1px solid ${type === 'success' ? 'rgba(0,200,150,0.3)' : 'rgba(204,0,0,0.3)'};
+        color: ${type === 'success' ? '#00c896' : '#e66666'};
         padding: 12px 20px;
         border-radius: 10px;
         font-size: 14px;
-        z-index: 1000;
+        z-index: 9999;
         animation: fadeIn 0.3s ease;
         backdrop-filter: blur(10px);
+        font-family: 'Open Sans', sans-serif;
     `;
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }
 
+// ===== CARTONASE =====
 async function genereazaCartonase() {
     const topic = document.getElementById('topic-input').value.trim();
     const numar = document.getElementById('numar-cartonase').value;
@@ -254,7 +306,6 @@ async function genereazaCartonase() {
 
 function afiseazaCartonase(cartonase) {
     const container = document.getElementById('cartonase-container');
-
     window.cartonaseData = cartonase;
 
     container.innerHTML = cartonase.map((c, i) => `
@@ -272,7 +323,6 @@ function afiseazaCartonase(cartonase) {
 
 function openModal(index) {
     const c = window.cartonaseData[index];
-
     document.getElementById('modal-intrebare').textContent = c.intrebare;
 
     const badge = document.getElementById('modal-dificultate-badge');
@@ -289,7 +339,6 @@ function openModal(index) {
         .replace(/\n/g, '<br>');
 
     body.innerHTML = '<p>' + raspuns + '</p>';
-
     document.getElementById('modal-overlay').classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -302,6 +351,8 @@ function closeModal() {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
 });
+
+// ===== QUIZ =====
 let quizData = {
     intrebari: [],
     indexCurent: 0,
@@ -420,7 +471,7 @@ function afiseazaFeedback(rezultat, raspunsCorect) {
             <div class="feedback-nota">${rezultat.nota}/10</div>
             <p><strong>Feedback:</strong> ${rezultat.feedback}</p>
         </div>
-        <div style="background: rgba(0,212,170,0.05); border: 1px solid rgba(0,212,170,0.2); border-radius: 10px; padding: 1rem;">
+        <div style="background: rgba(0,200,150,0.05); border: 1px solid rgba(0,200,150,0.2); border-radius: 10px; padding: 1rem;">
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem;">RASPUNS CORECT:</p>
             <p style="font-size: 14px; color: var(--text);">${raspunsCorect}</p>
         </div>
@@ -461,7 +512,6 @@ function afiseazaRezultatFinal() {
     document.getElementById('quiz-feedback').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'none';
     document.getElementById('quiz-rezultat-final').style.display = 'flex';
-
     document.getElementById('quiz-progress-fill').style.width = '100%';
 }
 
