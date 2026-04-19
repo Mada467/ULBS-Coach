@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from database import get_connection
 from ai_service import get_raspuns, client
 from cartonase import genereaza_cartonase
+from so_service import get_raspuns_so
 import os
 import json
 
@@ -89,6 +90,18 @@ def intreaba():
     except Exception as e:
         print(f"Eroare salvare statistici: {e}")
     
+    return jsonify({'raspuns': raspuns})
+
+@app.route('/api/so/intreaba', methods=['POST'])
+def intreaba_so():
+    data = request.get_json()
+    intrebare = data.get('intrebare')
+    nivel_nota = data.get('nivel_nota', '7-8')
+
+    if not intrebare:
+        return jsonify({'error': 'Intrebarea lipseste!'}), 400
+
+    raspuns = get_raspuns_so(intrebare, nivel_nota)
     return jsonify({'raspuns': raspuns})
 
 @app.route('/api/statistici', methods=['GET'])
