@@ -74,7 +74,7 @@ INSTRUCTIUNI: {nivel_text}
 """
     
     response = client.models.generate_content(
-        model='gemini-1.5-flash',
+        model='gemini-2.5-flash', # <--- Modificarea este aici
         contents=prompt
     )
     return response.text
