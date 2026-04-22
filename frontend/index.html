@@ -1,475 +1,587 @@
 <!doctype html>
 <html lang="ro">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ULBS Coach — Asistent AI</title>
-  <link rel="stylesheet" href="/app/ULBS-Coach.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-</head>
-<body>
-
-<!-- ===== NAVBAR ===== -->
-<nav class="navbar">
-  <div class="nav-brand">
-    <div class="nav-logo">
-      <img src="https://www.ulbsibiu.ro/wp-content/uploads/logo-ulbs.png" alt="ULBS"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-      <span class="nav-logo-fallback">UC</span>
-    </div>
-    <div class="nav-text">
-      <span class="nav-title">ULBS Coach</span>
-      <span class="nav-subtitle">Universitatea Lucian Blaga din Sibiu</span>
-    </div>
-  </div>
-  <div class="nav-right">
-    <div class="streak-badge" id="streak-badge" title="Streak zilnic">
-      <span class="streak-fire">🔥</span>
-      <span id="streak-count">0</span>
-    </div>
-    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Schimba tema">
-      <span id="theme-icon">🌙</span>
-    </button>
-    <div class="nav-status">
-      <span class="status-dot"></span>
-      <span>AI Online</span>
-    </div>
-  </div>
-</nav>
-
-<!-- ===== HERO ===== -->
-<div class="hero">
-  <div class="hero-pill">✨ Platforma Educationala ULBS</div>
-  <h1>Invata mai inteligent,<br/><em>nu mai mult.</em></h1>
-  <p>Raspunsuri personalizate din cartea profesorului, la nivelul notei pe care ti-o doresti.</p>
-  <div class="hero-stats">
-    <div class="hero-stat">
-      <strong id="hero-total">0</strong>
-      <span>Intrebari</span>
-    </div>
-    <div class="hero-divider"></div>
-    <div class="hero-stat">
-      <strong id="hero-quiz">0</strong>
-      <span>Quiz-uri</span>
-    </div>
-    <div class="hero-divider"></div>
-    <div class="hero-stat">
-      <strong id="hero-streak">0</strong>
-      <span>Zile streak</span>
-    </div>
-  </div>
-</div>
-
-<!-- ===== TABS NAV ===== -->
-<div class="tabs-nav">
-  <div class="tabs-container">
-    <button class="tab-btn active" data-tab="coach" onclick="switchTab('coach')">
-      <span>💬</span> Intreaba AI
-    </button>
-    <button class="tab-btn" data-tab="cartonase" onclick="switchTab('cartonase')">
-      <span>🃏</span> Cartonase
-    </button>
-    <button class="tab-btn" data-tab="quiz" onclick="switchTab('quiz')">
-      <span>🎯</span> Mode Quiz
-    </button>
-    <button class="tab-btn" data-tab="salvate" onclick="switchTab('salvate')">
-      <span>🔖</span> Salvate
-    </button>
-    <button class="tab-btn" data-tab="statistici" onclick="switchTab('statistici')">
-      <span>📊</span> Statistici
-    </button>
-    <button class="tab-btn" data-tab="upload" onclick="switchTab('upload')">
-      <span>📄</span> Upload PDF
-    </button>
-  </div>
-</div>
-
-<main class="container">
-
-  <!-- ===== SELECTIE MATERIE ===== -->
-  <div class="section-label">
-    <span>📚</span> Alege Materia
-  </div>
-  <div class="materii-grid">
-    <div class="materie-card active" data-materie="POO" onclick="selectMaterie('POO')">
-      <div class="materie-icon">💻</div>
-      <div class="materie-info">
-        <h3>Programare OO</h3>
-        <p>Breazu Macarie</p>
-      </div>
-      <div class="materie-check" id="check-POO">✓</div>
-    </div>
-    <div class="materie-card" data-materie="SO" onclick="selectMaterie('SO')">
-      <div class="materie-icon">🖥️</div>
-      <div class="materie-info">
-        <h3>Sisteme de Operare</h3>
-        <p>Breazu Macarie</p>
-      </div>
-      <div class="materie-check" id="check-SO" style="display:none">✓</div>
-    </div>
-  </div>
-
-  <!-- Bara materie activa -->
-  <div class="materie-bar" id="materie-bar">
-    <span id="materie-bar-icon">💻</span>
-    <span>Materie activa: <strong id="materie-bar-nume">Programare Orientata pe Obiecte</strong></span>
-  </div>
-
-  <!-- ===== TAB: COACH ===== -->
-  <div class="tab-content active" id="tab-coach">
-    <div class="card">
-      <div class="card-header">
-        <h2>Intreaba Profesorul AI</h2>
-        <div class="nota-selector">
-          <span class="nota-label">Nivel:</span>
-          <div class="nota-pills">
-            <button class="nota-pill" data-nota="5-6">5-6 <small>Baza</small></button>
-            <button class="nota-pill selected" data-nota="7-8">7-8 <small>Complet</small></button>
-            <button class="nota-pill" data-nota="9-10">9-10 <small>Detaliat</small></button>
-          </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ULBS Coach — Asistent AI</title>
+    <link rel="stylesheet" href="/app/stiluri.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- ===== NAVBAR ===== -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <div class="nav-logo">
+          <img
+            src="https://www.ulbsibiu.ro/wp-content/uploads/logo-ulbs.png"
+            alt="ULBS"
+            onerror="
+              this.style.display = 'none';
+              this.nextElementSibling.style.display = 'flex';
+            "
+          />
+          <span class="nav-logo-fallback">UC</span>
+        </div>
+        <div class="nav-text">
+          <span class="nav-title">ULBS Coach</span>
+          <span class="nav-subtitle">Universitatea Lucian Blaga din Sibiu</span>
         </div>
       </div>
-
-      <div class="quick-btns" id="quick-POO">
-        <span class="quick-label">Rapid:</span>
-        <button class="quick-btn" onclick="setIntrebare('Ce este o clasa in POO?')">Clasa</button>
-        <button class="quick-btn" onclick="setIntrebare('Explica mostenirea in POO')">Mostenire</button>
-        <button class="quick-btn" onclick="setIntrebare('Ce este polimorfismul?')">Polimorfism</button>
-        <button class="quick-btn" onclick="setIntrebare('Ce este incapsularea?')">Incapsulare</button>
-        <button class="quick-btn" onclick="setIntrebare('Ce este abstractizarea in POO?')">Abstractizare</button>
+      <div class="nav-right">
+        <div class="streak-badge" id="streak-badge" title="Streak zilnic">
+          <span class="streak-fire">🔥</span>
+          <span id="streak-count">0</span>
+        </div>
+        <button
+          class="theme-toggle"
+          id="theme-toggle"
+          onclick="toggleTheme()"
+          title="Schimba tema"
+        >
+          <span id="theme-icon">🌙</span>
+        </button>
+        <div class="nav-status">
+          <span class="status-dot"></span>
+          <span>AI Online</span>
+        </div>
       </div>
+    </nav>
 
-      <div class="quick-btns" id="quick-SO" style="display:none">
-        <span class="quick-label">Rapid:</span>
-        <button class="quick-btn" onclick="setIntrebare('Ce este un proces in sistemele de operare?')">Procese</button>
-        <button class="quick-btn" onclick="setIntrebare('Explica managementul memoriei')">Memorie</button>
-        <button class="quick-btn" onclick="setIntrebare('Ce este un deadlock?')">Deadlock</button>
-        <button class="quick-btn" onclick="setIntrebare('Cum functioneaza planificarea CPU?')">CPU</button>
-        <button class="quick-btn" onclick="setIntrebare('Ce sunt semafoarele in SO?')">Semafoare</button>
-      </div>
-
-      <div class="input-group">
-        <textarea id="intrebare-input" placeholder="Scrie intrebarea ta despre POO..." maxlength="1000"></textarea>
-        <div class="input-footer">
-          <span id="char-count" class="char-count">0 / 1000</span>
-          <button id="intreaba-btn" class="btn-primary" onclick="intreaba()">
-            <span id="btn-text">✨ Intreaba AI</span>
-            <span id="btn-spinner" style="display:none">⏳ Se gandeste...</span>
-          </button>
+    <!-- ===== HERO ===== -->
+    <div class="hero">
+      <div class="hero-pill">✨ Platforma Educationala ULBS</div>
+      <h1>Invata mai inteligent,<br /><em>nu mai mult.</em></h1>
+      <p>
+        Raspunsuri personalizate din cartea profesorului, la nivelul notei pe
+        care ti-o doresti.
+      </p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong id="hero-total">0</strong>
+          <span>Intrebari</span>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat">
+          <strong id="hero-quiz">0</strong>
+          <span>Quiz-uri</span>
+        </div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat">
+          <strong id="hero-streak">0</strong>
+          <span>Zile streak</span>
         </div>
       </div>
     </div>
 
-    <!-- Raspuns AI -->
-    <div class="card raspuns-card" id="raspuns-card" style="display:none">
-      <div class="raspuns-header">
-        <div class="raspuns-avatar">AI</div>
-        <div class="raspuns-meta">
-          <h3>Prof. ULBS Coach</h3>
-          <span class="nivel-tag" id="raspuns-nivel-tag">Nota 7-8</span>
-        </div>
-        <div class="raspuns-actions">
-          <button class="btn-ghost" onclick="salveazaRaspunsActual()" title="Salveaza intrebarea">🔖</button>
-          <button class="btn-ghost" onclick="copyRaspuns()" title="Copiaza raspunsul">📋 Copiaza</button>
-        </div>
-      </div>
-      <div id="raspuns-text" class="raspuns-text"></div>
-      <div class="raspuns-footer">
-        <span id="raspuns-sursa" class="sursa-tag">📖 Sursa: Breazu Macarie - POO</span>
-        <button class="btn-outline" onclick="newIntrebare()">+ Intrebare noua</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: CARTONASE ===== -->
-  <div class="tab-content" id="tab-cartonase">
-    <div class="card">
-      <div class="card-header">
-        <h2>🃏 Cartonase de Studiu</h2>
-        <span class="tag-new">Nou</span>
-      </div>
-      <div class="form-row">
-        <input type="text" id="topic-input" class="input-field" placeholder="Ex: mostenire, polimorfism, clase..." />
-      </div>
-      <div class="form-row">
-        <select id="numar-cartonase" class="select-field">
-          <option value="3">3 cartonase</option>
-          <option value="5" selected>5 cartonase</option>
-          <option value="10">10 cartonase</option>
-        </select>
-        <button id="genereaza-btn" class="btn-primary" onclick="genereazaCartonase()">
-          🃏 Genereaza Cartonase
+    <!-- ===== TABS NAV ===== -->
+    <div class="tabs-nav">
+      <div class="tabs-container">
+        <button
+          class="tab-btn active"
+          data-tab="coach"
+          onclick="switchTab('coach')"
+        >
+          <span>💬</span> Intreaba AI
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="cartonase"
+          onclick="switchTab('cartonase')"
+        >
+          <span>🃏</span> Cartonase
+        </button>
+        <button class="tab-btn" data-tab="quiz" onclick="switchTab('quiz')">
+          <span>🎯</span> Mode Quiz
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="salvate"
+          onclick="switchTab('salvate')"
+        >
+          <span>🔖</span> Salvate
+        </button>
+        <button
+          class="tab-btn"
+          data-tab="statistici"
+          onclick="switchTab('statistici')"
+        >
+          <span>📊</span> Statistici
+        </button>
+        <button class="tab-btn" data-tab="upload" onclick="switchTab('upload')">
+          <span>📄</span> Upload PDF
         </button>
       </div>
     </div>
-    <div id="cartonase-container"></div>
-  </div>
 
-  <!-- ===== TAB: QUIZ ===== -->
-  <div class="tab-content" id="tab-quiz">
-    <!-- Start Quiz -->
-    <div id="quiz-start-screen" class="card">
-      <div class="card-header">
-        <h2>🎯 Mode Quiz</h2>
-        <span class="tag-beta">Beta</span>
-      </div>
-      <p class="card-desc">Testeaza-ti cunostintele! AI-ul genereaza intrebari si iti evalueaza raspunsurile in detaliu.</p>
+    <main class="container">
+      <!-- ===== SELECTIE MATERIE ===== -->
+      <div class="section-label"><span>📚</span> Alege Materia</div>
 
-      <div class="form-row">
-        <input type="text" id="quiz-topic-input" class="input-field" placeholder="Ex: polimorfism, clase, deadlock..." />
-      </div>
-      <div class="form-row three-col">
-        <select id="quiz-numar" class="select-field">
-          <option value="3">3 intrebari</option>
-          <option value="5" selected>5 intrebari</option>
-          <option value="10">10 intrebari</option>
-        </select>
-        <select id="quiz-tip" class="select-field">
-          <option value="teorie">📖 Teorie</option>
-          <option value="cod">💻 Cod</option>
-        </select>
-        <button id="start-quiz-btn" class="btn-primary" onclick="startQuiz()">
-          🎯 Incepe Quiz
-        </button>
-      </div>
-
-      <!-- Istoric sesiuni quiz -->
-      <div id="quiz-istoric-section" style="margin-top:1.5rem;">
-        <h3 class="subsection-title">📈 Ultimele Quiz-uri</h3>
-        <div id="quiz-istoric-lista"></div>
-      </div>
-    </div>
-
-    <!-- Quiz activ -->
-    <div id="quiz-activ" style="display:none">
-      <!-- Timer si progress -->
-      <div class="card quiz-header-card">
-        <div class="quiz-meta">
-          <span id="quiz-progress-text">Intrebarea 1 din 5</span>
-          <div class="quiz-timer" id="quiz-timer">
-            <span>⏱️</span>
-            <span id="timer-display">02:00</span>
-          </div>
-          <span class="quiz-materie-tag" id="quiz-materie-tag">POO</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="quiz-progress-fill"></div>
-        </div>
-      </div>
-
-      <!-- Intrebarea curenta -->
-      <div class="card">
-        <div class="quiz-question-header">
-          <span class="question-number" id="quiz-question-number">01</span>
-          <span class="question-dif" id="quiz-question-dif">mediu</span>
-        </div>
-        <h3 id="quiz-intrebare" class="quiz-question-text"></h3>
-        <textarea id="quiz-raspuns-input" class="input-field" placeholder="Scrie raspunsul tau aici..." rows="5"></textarea>
-        <div class="input-footer">
-          <span id="quiz-char-count" class="char-count">0 / 1500</span>
-          <button id="quiz-submit-btn" class="btn-primary" onclick="submitRaspuns()">
-            <span id="quiz-btn-text">✓ Trimite Raspuns</span>
-            <span id="quiz-btn-spinner" style="display:none">⏳ Evaluare...</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Feedback raspuns -->
-    <div id="quiz-feedback-screen" style="display:none">
-      <div class="card feedback-card" id="feedback-card-content">
-        <!-- Completat din JS -->
-      </div>
-      <div class="feedback-actions">
-        <button class="btn-ghost" onclick="salveazaIntrebareaQuiz()">🔖 Salveaza intrebarea</button>
-        <button class="btn-primary" id="quiz-next-btn" onclick="nextIntrebare()">Urmatoarea →</button>
-      </div>
-    </div>
-
-    <!-- Rezultat final -->
-    <div id="quiz-rezultat" style="display:none">
-      <div class="card rezultat-card">
-        <div class="rezultat-header">
-          <div class="rezultat-emoji" id="rezultat-emoji">🏆</div>
-          <h2>Quiz Finalizat!</h2>
-        </div>
-        <div class="rezultat-nota" id="rezultat-nota">8.5/10</div>
-        <p class="rezultat-mesaj" id="rezultat-mesaj"></p>
-
-        <div class="rezultat-stats">
-          <div class="rez-stat">
-            <strong id="rez-corecte">0</strong>
-            <span>Corecte</span>
-          </div>
-          <div class="rez-stat">
-            <strong id="rez-gresite">0</strong>
-            <span>Gresite</span>
-          </div>
-          <div class="rez-stat">
-            <strong id="rez-timp">0s</strong>
-            <span>Timp total</span>
-          </div>
-        </div>
-
-        <!-- Ce trebuie sa inveti -->
-        <div class="ce-invata" id="ce-invata-section" style="display:none">
-          <h4>📚 Ce trebuie sa inveti mai mult:</h4>
-          <div id="ce-invata-lista"></div>
-        </div>
-
-        <div class="rezultat-btns">
-          <button class="btn-outline" onclick="resetQuiz()">🔄 Quiz nou</button>
-          <button class="btn-primary" onclick="switchTab('statistici')">📊 Vezi statistici</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: SALVATE ===== -->
-  <div class="tab-content" id="tab-salvate">
-    <div class="card">
-      <div class="card-header">
-        <h2>🔖 Intrebari Salvate</h2>
-        <select id="filter-materie-salvate" class="select-field" onchange="loadSalvate()" style="width:auto">
-          <option value="">Toate materiile</option>
-          <option value="POO">POO</option>
-          <option value="SO">SO</option>
-        </select>
-      </div>
-      <div id="salvate-lista">
-        <div class="empty-state">
-          <span>🔖</span>
-          <p>Nu ai intrebari salvate inca.<br/>Apasa 🔖 pe orice raspuns pentru a-l salva.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: STATISTICI ===== -->
-  <div class="tab-content" id="tab-statistici">
-    <div class="stats-grid">
-      <div class="stat-card orange">
-        <div class="stat-number" id="stat-total">0</div>
-        <div class="stat-label">Intrebari totale</div>
-      </div>
-      <div class="stat-card coral">
-        <div class="stat-number" id="stat-azi">0</div>
-        <div class="stat-label">Intrebari azi</div>
-      </div>
-      <div class="stat-card amber">
-        <div class="stat-number" id="stat-nivel">-</div>
-        <div class="stat-label">Nivel preferat</div>
-      </div>
-      <div class="stat-card peach">
-        <div class="stat-number" id="stat-streak-big">0🔥</div>
-        <div class="stat-label">Streak zile</div>
-      </div>
-    </div>
-
-    <!-- Grafic activitate pe materii -->
-    <div class="card">
-      <div class="card-header">
-        <h2>📊 Activitate pe Materii</h2>
-        <button class="btn-ghost" onclick="loadStatistici()">🔄</button>
-      </div>
-      <div class="materie-chart" id="materie-chart"></div>
-    </div>
-
-    <!-- Istoric quiz -->
-    <div class="card">
-      <div class="card-header">
-        <h2>🎯 Istoric Quiz</h2>
-      </div>
-      <div id="quiz-istoric-full"></div>
-    </div>
-
-    <!-- Istoric intrebari -->
-    <div class="card">
-      <div class="card-header">
-        <h2>📝 Ultimele Intrebari</h2>
-        <button class="btn-ghost" onclick="loadStatistici()">🔄 Actualizeaza</button>
-      </div>
-      <div id="statistici-lista"></div>
-    </div>
-  </div>
-
-  <!-- ===== TAB: UPLOAD PDF ===== -->
-  <div class="tab-content" id="tab-upload">
-    <div class="card">
-      <div class="card-header">
-        <h2>📄 Adauga Cartea Profesorului</h2>
-      </div>
-      <p class="card-desc">Nu ai cartea fizica? Uploadeaza PDF-ul profesorului si ULBS Coach il va folosi pentru raspunsuri personalizate.</p>
-
-      <div class="upload-area" id="upload-area" onclick="document.getElementById('pdf-input').click()">
-        <div class="upload-icon">📄</div>
-        <h3>Click sau drag & drop PDF</h3>
-        <p>Maxim 50MB — text sau scanat (OCR automat)</p>
-        <input type="file" id="pdf-input" accept=".pdf" style="display:none" onchange="handlePdfSelect(event)" />
-      </div>
-
-      <div class="form-row">
-        <input type="text" id="upload-materie" class="input-field" placeholder="Numele materiei (ex: Algoritmi si Structuri de Date)" />
-      </div>
-      <div class="form-row">
-        <input type="text" id="upload-profesor" class="input-field" placeholder="Numele profesorului (optional)" />
-      </div>
-
-      <div id="upload-preview" style="display:none" class="upload-preview">
-        <span id="upload-filename">fisier.pdf</span>
-        <button class="btn-ghost" onclick="clearUpload()">✕</button>
-      </div>
-
-      <button id="upload-btn" class="btn-primary" onclick="uploadPdf()" style="width:100%;margin-top:1rem">
-        <span id="upload-btn-text">⬆️ Incarca PDF</span>
-        <span id="upload-btn-spinner" style="display:none">⏳ Se proceseaza...</span>
-      </button>
-    </div>
-
-    <!-- Carti uploadate -->
-    <div class="card">
-      <div class="card-header">
-        <h2>📚 Carti Adaugate</h2>
-        <button class="btn-ghost" onclick="loadCarti()">🔄</button>
-      </div>
-      <div id="carti-lista">
-        <div class="empty-state">
+      <!-- Materii dinamice din DB -->
+      <div class="materii-grid" id="materii-container">
+        <div class="empty-materii">
           <span>📚</span>
-          <p>Nu ai uploadat nicio carte inca.</p>
+          <p>Se incarca materiile...</p>
+        </div>
+      </div>
+
+      <!-- Bara materie activa -->
+      <div class="materie-bar" id="materie-bar">
+        <span id="materie-bar-icon">📚</span>
+        <span
+          >Materie activa:
+          <strong id="materie-bar-nume">Nicio materie selectata</strong></span
+        >
+      </div>
+
+      <!-- ===== TAB: COACH ===== -->
+      <div class="tab-content active" id="tab-coach">
+        <div class="card">
+          <div class="card-header">
+            <h2>Intreaba Profesorul AI</h2>
+            <div class="nota-selector">
+              <span class="nota-label">Nivel:</span>
+              <div class="nota-pills">
+                <button class="nota-pill" data-nota="5-6">
+                  5-6 <small>Baza</small>
+                </button>
+                <button class="nota-pill selected" data-nota="7-8">
+                  7-8 <small>Complet</small>
+                </button>
+                <button class="nota-pill" data-nota="9-10">
+                  9-10 <small>Detaliat</small>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <textarea
+              id="intrebare-input"
+              placeholder="Selecteaza o materie si scrie intrebarea ta..."
+              maxlength="1000"
+            ></textarea>
+            <div class="input-footer">
+              <span id="char-count" class="char-count">0 / 1000</span>
+              <button
+                id="intreaba-btn"
+                class="btn-primary"
+                onclick="intreaba()"
+              >
+                <span id="btn-text">✨ Intreaba AI</span>
+                <span id="btn-spinner" style="display: none"
+                  >⏳ Se gandeste...</span
+                >
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raspuns AI -->
+        <div class="card raspuns-card" id="raspuns-card" style="display: none">
+          <div class="raspuns-header">
+            <div class="raspuns-avatar">AI</div>
+            <div class="raspuns-meta">
+              <h3>Prof. ULBS Coach</h3>
+              <span class="nivel-tag" id="raspuns-nivel-tag">Nota 7-8</span>
+            </div>
+            <div class="raspuns-actions">
+              <button
+                class="btn-ghost"
+                onclick="salveazaRaspunsActual()"
+                title="Salveaza intrebarea"
+              >
+                🔖
+              </button>
+              <button
+                class="btn-ghost"
+                onclick="copyRaspuns()"
+                title="Copiaza raspunsul"
+              >
+                📋 Copiaza
+              </button>
+            </div>
+          </div>
+          <div id="raspuns-text" class="raspuns-text"></div>
+          <div class="raspuns-footer">
+            <span id="raspuns-sursa" class="sursa-tag">📖 ULBS Coach AI</span>
+            <button class="btn-outline" onclick="newIntrebare()">
+              + Intrebare noua
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAB: CARTONASE ===== -->
+      <div class="tab-content" id="tab-cartonase">
+        <div class="card">
+          <div class="card-header">
+            <h2>🃏 Cartonase de Studiu</h2>
+            <span class="tag-new">Nou</span>
+          </div>
+          <div class="form-row">
+            <input
+              type="text"
+              id="topic-input"
+              class="input-field"
+              placeholder="Ex: mostenire, polimorfism, clase..."
+            />
+          </div>
+          <div class="form-row">
+            <select id="numar-cartonase" class="select-field">
+              <option value="3">3 cartonase</option>
+              <option value="5" selected>5 cartonase</option>
+              <option value="10">10 cartonase</option>
+            </select>
+            <button
+              id="genereaza-btn"
+              class="btn-primary"
+              onclick="genereazaCartonase()"
+            >
+              🃏 Genereaza Cartonase
+            </button>
+          </div>
+        </div>
+        <div id="cartonase-container"></div>
+      </div>
+
+      <!-- ===== TAB: QUIZ ===== -->
+      <div class="tab-content" id="tab-quiz">
+        <!-- Start Quiz -->
+        <div id="quiz-start-screen" class="card">
+          <div class="card-header">
+            <h2>🎯 Mode Quiz</h2>
+            <span class="tag-beta">Beta</span>
+          </div>
+          <p class="card-desc">
+            Testeaza-ti cunostintele! AI-ul genereaza intrebari si iti evalueaza
+            raspunsurile in detaliu.
+          </p>
+
+          <div class="form-row">
+            <input
+              type="text"
+              id="quiz-topic-input"
+              class="input-field"
+              placeholder="Ex: polimorfism, clase, deadlock..."
+            />
+          </div>
+          <div class="form-row three-col">
+            <select id="quiz-numar" class="select-field">
+              <option value="3">3 intrebari</option>
+              <option value="5" selected>5 intrebari</option>
+              <option value="10">10 intrebari</option>
+            </select>
+            <select id="quiz-tip" class="select-field">
+              <option value="teorie">📖 Teorie</option>
+              <option value="cod">💻 Cod</option>
+            </select>
+            <button
+              id="start-quiz-btn"
+              class="btn-primary"
+              onclick="startQuiz()"
+            >
+              🎯 Incepe Quiz
+            </button>
+          </div>
+
+          <!-- Istoric sesiuni quiz -->
+          <div id="quiz-istoric-section" style="margin-top: 1.5rem">
+            <h3 class="subsection-title">📈 Ultimele Quiz-uri</h3>
+            <div id="quiz-istoric-lista"></div>
+          </div>
+        </div>
+
+        <!-- Quiz activ -->
+        <div id="quiz-activ" style="display: none">
+          <div class="card quiz-header-card">
+            <div class="quiz-meta">
+              <span id="quiz-progress-text">Intrebarea 1 din 5</span>
+              <div class="quiz-timer" id="quiz-timer">
+                <span>⏱️</span>
+                <span id="timer-display">02:00</span>
+              </div>
+              <span class="quiz-materie-tag" id="quiz-materie-tag"></span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="quiz-progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="quiz-question-header">
+              <span class="question-number" id="quiz-question-number">01</span>
+              <span class="question-dif" id="quiz-question-dif">mediu</span>
+            </div>
+            <h3 id="quiz-intrebare" class="quiz-question-text"></h3>
+            <textarea
+              id="quiz-raspuns-input"
+              class="input-field"
+              placeholder="Scrie raspunsul tau aici..."
+              rows="5"
+            ></textarea>
+            <div class="input-footer">
+              <span id="quiz-char-count" class="char-count">0 / 1500</span>
+              <button
+                id="quiz-submit-btn"
+                class="btn-primary"
+                onclick="submitRaspuns()"
+              >
+                <span id="quiz-btn-text">✓ Trimite Raspuns</span>
+                <span id="quiz-btn-spinner" style="display: none"
+                  >⏳ Evaluare...</span
+                >
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback raspuns -->
+        <div id="quiz-feedback-screen" style="display: none">
+          <div class="card feedback-card" id="feedback-card-content"></div>
+          <div class="feedback-actions">
+            <button class="btn-ghost" onclick="salveazaIntrebareaQuiz()">
+              🔖 Salveaza intrebarea
+            </button>
+            <button
+              class="btn-primary"
+              id="quiz-next-btn"
+              onclick="nextIntrebare()"
+            >
+              Urmatoarea →
+            </button>
+          </div>
+        </div>
+
+        <!-- Rezultat final -->
+        <div id="quiz-rezultat" style="display: none">
+          <div class="card rezultat-card">
+            <div class="rezultat-header">
+              <div class="rezultat-emoji" id="rezultat-emoji">🏆</div>
+              <h2>Quiz Finalizat!</h2>
+            </div>
+            <div class="rezultat-nota" id="rezultat-nota">8.5/10</div>
+            <p class="rezultat-mesaj" id="rezultat-mesaj"></p>
+
+            <div class="rezultat-stats">
+              <div class="rez-stat">
+                <strong id="rez-corecte">0</strong>
+                <span>Corecte</span>
+              </div>
+              <div class="rez-stat">
+                <strong id="rez-gresite">0</strong>
+                <span>Gresite</span>
+              </div>
+              <div class="rez-stat">
+                <strong id="rez-timp">0s</strong>
+                <span>Timp total</span>
+              </div>
+            </div>
+
+            <div class="ce-invata" id="ce-invata-section" style="display: none">
+              <h4>📚 Ce trebuie sa inveti mai mult:</h4>
+              <div id="ce-invata-lista"></div>
+            </div>
+
+            <div class="rezultat-btns">
+              <button class="btn-outline" onclick="resetQuiz()">
+                🔄 Quiz nou
+              </button>
+              <button class="btn-primary" onclick="switchTab('statistici')">
+                📊 Vezi statistici
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAB: SALVATE ===== -->
+      <div class="tab-content" id="tab-salvate">
+        <div class="card">
+          <div class="card-header">
+            <h2>🔖 Intrebari Salvate</h2>
+            <select
+              id="filter-materie-salvate"
+              class="select-field"
+              onchange="loadSalvate()"
+              style="width: auto"
+            >
+              <option value="">Toate materiile</option>
+            </select>
+          </div>
+          <div id="salvate-lista">
+            <div class="empty-state">
+              <span>🔖</span>
+              <p>
+                Nu ai intrebari salvate inca.<br />Apasa 🔖 pe orice raspuns
+                pentru a-l salva.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== TAB: STATISTICI ===== -->
+      <div class="tab-content" id="tab-statistici">
+        <div class="stats-grid">
+          <div class="stat-card orange">
+            <div class="stat-number" id="stat-total">0</div>
+            <div class="stat-label">Intrebari totale</div>
+          </div>
+          <div class="stat-card coral">
+            <div class="stat-number" id="stat-azi">0</div>
+            <div class="stat-label">Intrebari azi</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-number" id="stat-nivel">-</div>
+            <div class="stat-label">Nivel preferat</div>
+          </div>
+          <div class="stat-card peach">
+            <div class="stat-number" id="stat-streak-big">0🔥</div>
+            <div class="stat-label">Streak zile</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📊 Activitate pe Materii</h2>
+            <button class="btn-ghost" onclick="loadStatistici()">🔄</button>
+          </div>
+          <div class="materie-chart" id="materie-chart"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🎯 Istoric Quiz</h2>
+          </div>
+          <div id="quiz-istoric-full"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📝 Ultimele Intrebari</h2>
+            <button class="btn-ghost" onclick="loadStatistici()">
+              🔄 Actualizeaza
+            </button>
+          </div>
+          <div id="statistici-lista"></div>
+        </div>
+      </div>
+
+      <!-- ===== TAB: UPLOAD PDF ===== -->
+      <div class="tab-content" id="tab-upload">
+        <div class="card">
+          <div class="card-header">
+            <h2>📄 Adauga Cartea Profesorului</h2>
+          </div>
+          <p class="card-desc">
+            Uploadeaza PDF-ul profesorului si ULBS Coach il va folosi pentru
+            raspunsuri personalizate. Materia va aparea automat in lista!
+          </p>
+
+          <div
+            class="upload-area"
+            id="upload-area"
+            onclick="document.getElementById('pdf-input').click()"
+          >
+            <div class="upload-icon">📄</div>
+            <h3>Click sau drag & drop PDF</h3>
+            <p>Maxim 50MB — text sau scanat (OCR automat)</p>
+            <input
+              type="file"
+              id="pdf-input"
+              accept=".pdf"
+              style="display: none"
+              onchange="handlePdfSelect(event)"
+            />
+          </div>
+
+          <div class="form-row">
+            <input
+              type="text"
+              id="upload-materie"
+              class="input-field"
+              placeholder="Numele materiei (ex: Algoritmi si Structuri de Date)"
+            />
+          </div>
+          <div class="form-row">
+            <input
+              type="text"
+              id="upload-profesor"
+              class="input-field"
+              placeholder="Numele profesorului (optional)"
+            />
+          </div>
+
+          <div id="upload-preview" style="display: none" class="upload-preview">
+            <span id="upload-filename">fisier.pdf</span>
+            <button class="btn-ghost" onclick="clearUpload()">✕</button>
+          </div>
+
+          <button
+            id="upload-btn"
+            class="btn-primary"
+            onclick="uploadPdf()"
+            style="width: 100%; margin-top: 1rem"
+          >
+            <span id="upload-btn-text">⬆️ Incarca PDF</span>
+            <span id="upload-btn-spinner" style="display: none"
+              >⏳ Se proceseaza...</span
+            >
+          </button>
+        </div>
+
+        <!-- Carti uploadate -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📚 Carti Adaugate</h2>
+            <button class="btn-ghost" onclick="loadCarti()">🔄</button>
+          </div>
+          <div id="carti-lista">
+            <div class="empty-state">
+              <span>📚</span>
+              <p>Nu ai uploadat nicio carte inca.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 Universitatea Lucian Blaga din Sibiu</span>
+      <span>ULBS Coach v3.0 — Asistent AI pentru Studenti</span>
+    </footer>
+
+    <!-- Modal cartonas -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+      <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-top">
+          <div>
+            <span class="dif-tag" id="modal-dif-tag"></span>
+            <h3 id="modal-intrebare"></h3>
+          </div>
+          <button class="modal-close-btn" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-divider"></div>
+        <div class="modal-body" id="modal-body"></div>
+        <div class="modal-footer">
+          <button
+            class="btn-ghost"
+            onclick="salveazaCartonas(currentCartonasIndex)"
+          >
+            🔖 Salveaza
+          </button>
+          <button class="btn-outline" onclick="closeModal()">Inchide</button>
         </div>
       </div>
     </div>
-  </div>
 
-</main>
+    <!-- Toast -->
+    <div id="toast-container"></div>
 
-<footer class="footer">
-  <span>© 2026 Universitatea Lucian Blaga din Sibiu</span>
-  <span>ULBS Coach v2.0 — Asistent AI pentru Studenti</span>
-</footer>
-
-<!-- Modal cartonas -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-top">
-      <div>
-        <span class="dif-tag" id="modal-dif-tag"></span>
-        <h3 id="modal-intrebare"></h3>
-      </div>
-      <button class="modal-close-btn" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-divider"></div>
-    <div class="modal-body" id="modal-body"></div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="salveazaCartonas(currentCartonasIndex)">🔖 Salveaza</button>
-      <button class="btn-outline" onclick="closeModal()">Inchide</button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div id="toast-container"></div>
-
-<script src="/app/ULBS-Coach.js"></script>
-</body>
+    <script src="/app/aplicatie.js"></script>
+  </body>
 </html>
