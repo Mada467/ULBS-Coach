@@ -6,7 +6,6 @@ load_dotenv()
 
 
 def get_connection():
-    """Returneaza o conexiune la baza de date MySQL."""
     return pymysql.connect(
         host=os.getenv('DB_HOST', 'localhost'),
         user=os.getenv('DB_USER', 'root'),
@@ -17,42 +16,43 @@ def get_connection():
     )
 
 
-def test_connection():
-    """Testeaza conexiunea la baza de date."""
-    try:
-        conn = get_connection()
-        print("[DB] Conexiune MySQL reusita!")
-        conn.close()
-        return True
-    except Exception as e:
-        print(f"[DB] Eroare conexiune: {e}")
-        return False
-
-
 def init_db():
-    """Initializeaza schema bazei de date cu toate tabelele necesare."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
-        # Tabel materii
+        # Materii dinamice per student
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS materii (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                nume VARCHAR(50) NOT NULL UNIQUE,
-                descriere TEXT,
+                student_id VARCHAR(64) NOT NULL,
+                nume VARCHAR(100) NOT NULL,
+                profesor VARCHAR(100),
                 icon VARCHAR(10) DEFAULT '📚',
-                activa TINYINT(1) DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
-        # Tabel statistici (intrebari puse)
+        # Materiale uploadate per materie
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS materiale (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                materie_id INT NOT NULL,
+                student_id VARCHAR(64) NOT NULL,
+                nume_fisier VARCHAR(255) NOT NULL,
+                text_extras LONGTEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (materie_id) REFERENCES materii(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Statistici per student
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS statistici (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                student_id VARCHAR(64) NOT NULL,
                 materie_id INT,
-                materie_nume VARCHAR(50),
+                materie_nume VARCHAR(100),
                 intrebare TEXT NOT NULL,
                 nota_ceruta VARCHAR(10),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -60,11 +60,12 @@ def init_db():
             )
         """)
 
-        # Tabel sesiuni quiz
+        # Sesiuni quiz per student
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS quiz_sesiuni (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                materie VARCHAR(50),
+                student_id VARCHAR(64) NOT NULL,
+                materie VARCHAR(100),
                 topic VARCHAR(255),
                 tip VARCHAR(20) DEFAULT 'teorie',
                 numar_intrebari INT DEFAULT 0,
@@ -75,7 +76,7 @@ def init_db():
             )
         """)
 
-        # Tabel raspunsuri quiz (pentru istoric detaliat)
+        # Raspunsuri quiz
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS quiz_raspunsuri (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -90,37 +91,17 @@ def init_db():
             )
         """)
 
-        # Tabel intrebari salvate (bookmark)
+        # Bookmarks per student
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS intrebari_salvate (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                materie VARCHAR(50),
+                student_id VARCHAR(64) NOT NULL,
+                materie VARCHAR(100),
                 intrebare TEXT NOT NULL,
                 raspuns TEXT,
                 dificultate VARCHAR(20) DEFAULT 'mediu',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-
-        # Tabel carti uploadate de studenti
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS carti_uploadate (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                materie_nume VARCHAR(100) NOT NULL,
-                profesor VARCHAR(100),
-                filename VARCHAR(255),
-                filepath VARCHAR(500),
-                size_chars INT DEFAULT 0,
-                activa TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Insereaza materiile default daca nu exista
-        cursor.execute("""
-            INSERT IGNORE INTO materii (nume, descriere, icon) VALUES
-            ('POO', 'Programare Orientata pe Obiecte - Breazu Macarie', '💻'),
-            ('SO', 'Sisteme de Operare - Breazu Macarie', '🖥️')
         """)
 
         conn.commit()
@@ -134,14 +115,89 @@ def init_db():
         return False
 
 
-def salveaza_intrebare(materie_id, materie_nume, intrebare, nota_ceruta):
-    """Salveaza o intrebare in statistici."""
+# ── MATERII ──────────────────────────────────────────────
+def get_materii(student_id):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO statistici (materie_id, materie_nume, intrebare, nota_ceruta) VALUES (%s, %s, %s, %s)",
-            (materie_id, materie_nume, intrebare, nota_ceruta)
+            "SELECT * FROM materii WHERE student_id = %s ORDER BY created_at DESC",
+            (student_id,)
+        )
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return rows
+    except Exception as e:
+        print(f"[DB] Eroare get materii: {e}")
+        return []
+
+
+def adauga_materie(student_id, nume, profesor, icon='📚'):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO materii (student_id, nume, profesor, icon) VALUES (%s, %s, %s, %s)",
+            (student_id, nume, profesor, icon)
+        )
+        materie_id = cursor.lastrowid
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return materie_id
+    except Exception as e:
+        print(f"[DB] Eroare adaugare materie: {e}")
+        return None
+
+
+# ── MATERIALE ─────────────────────────────────────────────
+def salveaza_material(materie_id, student_id, nume_fisier, text_extras):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO materiale (materie_id, student_id, nume_fisier, text_extras)
+               VALUES (%s, %s, %s, %s)""",
+            (materie_id, student_id, nume_fisier, text_extras)
+        )
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Eroare salvare material: {e}")
+        return False
+
+
+def get_text_materie(materie_id, student_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """SELECT text_extras FROM materiale 
+               WHERE materie_id = %s AND student_id = %s 
+               ORDER BY created_at DESC LIMIT 1""",
+            (materie_id, student_id)
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return row['text_extras'] if row else None
+    except Exception as e:
+        print(f"[DB] Eroare get text materie: {e}")
+        return None
+
+
+# ── STATISTICI ────────────────────────────────────────────
+def salveaza_intrebare(student_id, materie_id, materie_nume, intrebare, nota_ceruta):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO statistici (student_id, materie_id, materie_nume, intrebare, nota_ceruta)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (student_id, materie_id, materie_nume, intrebare, nota_ceruta)
         )
         conn.commit()
         cursor.close()
@@ -152,14 +208,15 @@ def salveaza_intrebare(materie_id, materie_nume, intrebare, nota_ceruta):
         return False
 
 
-def get_statistici(limit=20):
-    """Returneaza istoricul intrebarilor."""
+def get_statistici(student_id, limit=20):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT intrebare, nota_ceruta, materie_nume, created_at FROM statistici ORDER BY created_at DESC LIMIT %s",
-            (limit,)
+            """SELECT intrebare, nota_ceruta, materie_nume, created_at 
+               FROM statistici WHERE student_id = %s
+               ORDER BY created_at DESC LIMIT %s""",
+            (student_id, limit)
         )
         rows = cursor.fetchall()
         cursor.close()
@@ -168,7 +225,7 @@ def get_statistici(limit=20):
             {
                 'intrebare': r['intrebare'],
                 'nota': r['nota_ceruta'],
-                'materie': r['materie_nume'] or 'POO',
+                'materie': r['materie_nume'],
                 'data': str(r['created_at'])
             }
             for r in rows
@@ -178,15 +235,16 @@ def get_statistici(limit=20):
         return []
 
 
-def salveaza_sesiune_quiz(materie, topic, tip, numar_intrebari, scor_final, nota_finala):
-    """Salveaza o sesiune de quiz completata."""
+# ── QUIZ ──────────────────────────────────────────────────
+def salveaza_sesiune_quiz(student_id, materie, topic, tip, numar_intrebari, scor_final, nota_finala):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO quiz_sesiuni (materie, topic, tip, numar_intrebari, scor_final, nota_finala, completata)
-               VALUES (%s, %s, %s, %s, %s, %s, 1)""",
-            (materie, topic, tip, numar_intrebari, scor_final, nota_finala)
+            """INSERT INTO quiz_sesiuni 
+               (student_id, materie, topic, tip, numar_intrebari, scor_final, nota_finala, completata)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, 1)""",
+            (student_id, materie, topic, tip, numar_intrebari, scor_final, nota_finala)
         )
         sesiune_id = cursor.lastrowid
         conn.commit()
@@ -199,12 +257,12 @@ def salveaza_sesiune_quiz(materie, topic, tip, numar_intrebari, scor_final, nota
 
 
 def salveaza_raspuns_quiz(sesiune_id, intrebare, raspuns_student, raspuns_corect, nota, feedback):
-    """Salveaza un raspuns individual din quiz."""
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO quiz_raspunsuri (sesiune_id, intrebare, raspuns_student, raspuns_corect, nota, feedback)
+            """INSERT INTO quiz_raspunsuri 
+               (sesiune_id, intrebare, raspuns_student, raspuns_corect, nota, feedback)
                VALUES (%s, %s, %s, %s, %s, %s)""",
             (sesiune_id, intrebare, raspuns_student, raspuns_corect, nota, feedback)
         )
@@ -217,16 +275,15 @@ def salveaza_raspuns_quiz(sesiune_id, intrebare, raspuns_student, raspuns_corect
         return False
 
 
-def get_istoric_quiz(limit=10):
-    """Returneaza istoricul sesiunilor de quiz."""
+def get_istoric_quiz(student_id, limit=10):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """SELECT materie, topic, tip, numar_intrebari, nota_finala, created_at
-               FROM quiz_sesiuni WHERE completata = 1
+               FROM quiz_sesiuni WHERE completata = 1 AND student_id = %s
                ORDER BY created_at DESC LIMIT %s""",
-            (limit,)
+            (student_id, limit)
         )
         rows = cursor.fetchall()
         cursor.close()
@@ -247,15 +304,16 @@ def get_istoric_quiz(limit=10):
         return []
 
 
-def salveaza_intrebare_bookmark(materie, intrebare, raspuns, dificultate):
-    """Salveaza o intrebare in lista de bookmarks."""
+# ── BOOKMARKS ─────────────────────────────────────────────
+def salveaza_bookmark(student_id, materie, intrebare, raspuns, dificultate):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO intrebari_salvate (materie, intrebare, raspuns, dificultate)
-               VALUES (%s, %s, %s, %s)""",
-            (materie, intrebare, raspuns, dificultate)
+            """INSERT INTO intrebari_salvate 
+               (student_id, materie, intrebare, raspuns, dificultate)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (student_id, materie, intrebare, raspuns, dificultate)
         )
         conn.commit()
         cursor.close()
@@ -266,56 +324,26 @@ def salveaza_intrebare_bookmark(materie, intrebare, raspuns, dificultate):
         return False
 
 
-def get_bookmarks(materie=None):
-    """Returneaza intrebarile salvate."""
+def get_bookmarks(student_id, materie=None):
     try:
         conn = get_connection()
         cursor = conn.cursor()
         if materie:
             cursor.execute(
-                "SELECT * FROM intrebari_salvate WHERE materie = %s ORDER BY created_at DESC",
-                (materie,)
+                """SELECT * FROM intrebari_salvate 
+                   WHERE student_id = %s AND materie = %s 
+                   ORDER BY created_at DESC""",
+                (student_id, materie)
             )
         else:
-            cursor.execute("SELECT * FROM intrebari_salvate ORDER BY created_at DESC")
+            cursor.execute(
+                "SELECT * FROM intrebari_salvate WHERE student_id = %s ORDER BY created_at DESC",
+                (student_id,)
+            )
         rows = cursor.fetchall()
         cursor.close()
         conn.close()
         return rows
     except Exception as e:
         print(f"[DB] Eroare get bookmarks: {e}")
-        return []
-
-
-def salveaza_carte_uploadata(materie_nume, profesor, filename, filepath, size_chars):
-    """Salveaza informatii despre o carte uploadata."""
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """INSERT INTO carti_uploadate (materie_nume, profesor, filename, filepath, size_chars)
-               VALUES (%s, %s, %s, %s, %s)""",
-            (materie_nume, profesor, filename, filepath, size_chars)
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return True
-    except Exception as e:
-        print(f"[DB] Eroare salvare carte: {e}")
-        return False
-
-
-def get_carti_uploadate():
-    """Returneaza lista cartilor uploadate."""
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM carti_uploadate WHERE activa = 1 ORDER BY created_at DESC")
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return rows
-    except Exception as e:
-        print(f"[DB] Eroare get carti: {e}")
         return []
