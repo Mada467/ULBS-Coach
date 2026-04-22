@@ -9,9 +9,11 @@ from baza_date import (
 )
 from services.gemini_client import genereaza_cu_retry
 from routes.profesor_ai import get_raspuns, get_raspuns_fara_materie
+from services.carte_procesor import extract_text_from_pdf
 import os
 import json
 import uuid
+import tempfile
 import fitz
 
 load_dotenv()
@@ -105,25 +107,20 @@ Evalueaza raspunsul studentului si raspunde DOAR cu JSON (fara markdown):
 
 @app.route('/api/materii', methods=['GET'])
 def get_materii_route():
-    """Returneaza materiile dinamice ale studentului din DB."""
     student_id = request.args.get('student_id', 'default')
     materii = get_materii(student_id)
     return jsonify([dict(m) for m in materii])
 
 
-# ===== INTREABA AI — ROUTE UNIFICAT =====
+# ===== INTREABA AI =====
 
 @app.route('/api/intreaba', methods=['POST'])
 def intreaba():
-    """
-    Route unificat pentru orice materie.
-    Primeste materie_id si student_id, citeste cartea din DB.
-    """
     data = request.get_json()
     intrebare = data.get('intrebare', '').strip()
     nivel_nota = data.get('nivel_nota', '7-8')
-    materie_id = data.get('materie_id')          # ID din DB
-    materie_nume = data.get('materie_nume', '')   # Numele materiei pentru context
+    materie_id = data.get('materie_id')
+    materie_nume = data.get('materie_nume', '')
     student_id = data.get('student_id', 'default')
 
     if not intrebare:
@@ -132,7 +129,6 @@ def intreaba():
     if len(intrebare) > 1000:
         return jsonify({'error': 'Intrebarea este prea lunga (max 1000 caractere)!'}), 400
 
-    # Verificare etica
     etica = verifica_etica(intrebare, materie_nume)
     if not etica.get('permisa', True):
         return jsonify({
@@ -140,13 +136,11 @@ def intreaba():
             'motiv': etica.get('motiv', 'Intrebarea nu este adecvata.')
         }), 400
 
-    # Genereaza raspuns din cartea materiei
     if materie_id:
         raspuns = get_raspuns(intrebare, materie_id, student_id, nivel_nota)
     else:
         raspuns = get_raspuns_fara_materie(intrebare, nivel_nota)
 
-    # Salveaza in statistici
     salveaza_intrebare(student_id, materie_id, materie_nume, intrebare, nivel_nota)
 
     return jsonify({'raspuns': raspuns})
@@ -167,7 +161,6 @@ def cartonase():
     if not topic:
         return jsonify({'error': 'Topicul lipseste!'}), 400
 
-    # Ia contextul din carte daca exista
     context = ''
     if materie_id:
         from routes.profesor_ai import cauta_fragmente_relevante
@@ -312,17 +305,31 @@ def upload_pdf():
         return jsonify({'error': 'Fisierul trebuie sa fie PDF!'}), 400
 
     try:
+        # Salveaza PDF temporar
         pdf_bytes = pdf_file.read()
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+
+        # Incearca extragere text normal mai intai
         text = ""
+        doc = fitz.open(tmp_path)
         for page in doc:
             page_text = page.get_text()
             if len(page_text.strip()) > 50:
                 text += page_text + "\n"
         doc.close()
 
+        # Daca textul e insuficient, foloseste OCR
         if len(text) < 100:
-            return jsonify({'error': 'PDF-ul nu contine text suficient sau este scanat!'}), 400
+            print("[UPLOAD] Text insuficient, incerc OCR...", flush=True)
+            text = extract_text_from_pdf(tmp_path) or ""
+
+        # Sterge fisierul temporar
+        os.remove(tmp_path)
+
+        if len(text) < 100:
+            return jsonify({'error': 'PDF-ul nu contine text suficient sau este scanat si OCR-ul nu a putut extrage text!'}), 400
 
         # Creeaza materia in DB si salveaza textul
         materie_id = adauga_materie(student_id, materie_nume, profesor)
@@ -346,17 +353,14 @@ def upload_pdf():
 
 @app.route('/api/carti', methods=['GET'])
 def get_carti():
-    """Returneaza materiile ca 'carti' pentru compatibilitate frontend."""
     student_id = request.args.get('student_id', 'default')
     materii = get_materii(student_id)
-    # Transforma formatul pentru frontend
     result = []
     for m in materii:
         result.append({
             'materie_id': m['id'],
             'materie_nume': m['nume'],
             'profesor': m.get('profesor', ''),
-            'size_chars': 0,  # optional: poti face un COUNT din materiale
             'created_at': str(m['created_at'])
         })
     return jsonify(result)
