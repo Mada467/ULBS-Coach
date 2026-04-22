@@ -26,7 +26,7 @@ services:
       - 3307:3306
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/ulbs_coach.sql:/docker-entrypoint-initdb.d/ulbs_coach.sql
+      - ./baza_de_date/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
