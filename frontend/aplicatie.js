@@ -6,7 +6,9 @@ const API_URL = 'http://localhost:5000';
 
 // ===== STATE GLOBAL =====
 let state = {
-  materie: 'POO',
+  materie: null,
+  materie_id: null,
+  student_id: localStorage.getItem('ulbs-student-id') || genereazaStudentId(),
   nota: '7-8',
   cartonaseData: [],
   currentCartonasIndex: 0,
@@ -16,7 +18,8 @@ let state = {
     indexCurent: 0,
     scorTotal: 0,
     numar: 0,
-    materie: 'POO',
+    materie: null,
+    materie_id: null,
     topic: '',
     tip: 'teorie',
     startTime: null,
@@ -26,6 +29,12 @@ let state = {
   }
 };
 
+function genereazaStudentId() {
+  const id = 'student_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('ulbs-student-id', id);
+  return id;
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initNotaPills();
@@ -34,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStatistici();
   loadQuizIstoric();
   loadStreak();
-  selectMaterie('POO');
+  incarcaMaterii();
 });
 
 // ===== TEMA =====
@@ -72,44 +81,76 @@ function switchTab(tabName) {
   if (tabName === 'upload') loadCarti();
 }
 
-// ===== SELECTIE MATERIE =====
-function selectMaterie(materie) {
-  state.materie = materie;
+// ===== INCARCA MATERII DIN DB =====
+async function incarcaMaterii() {
+  try {
+    const res = await fetch(`${API_URL}/api/materii?student_id=${state.student_id}`);
+    const materii = await res.json();
 
-  // Update carduri
+    const container = document.getElementById('materii-container');
+    if (!container) return;
+
+    if (materii.length === 0) {
+      container.innerHTML = `
+        <div class="empty-materii">
+          <span>📚</span>
+          <p>Nu ai nicio materie inca.<br/>
+             Mergi la <strong>Upload PDF</strong> pentru a adauga prima materie!</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = materii.map(m => `
+      <div class="materie-card" data-materie="${m.id}" onclick="selectMaterie(${m.id}, '${escapeAttr(m.nume)}')">
+        <div class="materie-icon">${m.icon || '📚'}</div>
+        <div class="materie-info">
+          <h3>${escapeHtml(m.nume)}</h3>
+          <p>${escapeHtml(m.profesor || 'Profesor necunoscut')}</p>
+        </div>
+        <div class="materie-check" id="check-${m.id}" style="display:none">✓</div>
+      </div>
+    `).join('');
+
+    if (materii.length > 0) {
+      selectMaterie(materii[0].id, materii[0].nume);
+    }
+
+  } catch (err) {
+    console.error('Eroare la incarcarea materiilor:', err);
+    showToast('Eroare la incarcarea materiilor!', 'error');
+  }
+}
+
+// ===== SELECTIE MATERIE =====
+function selectMaterie(materieId, materieNume) {
+  state.materie_id = materieId;
+  state.materie = materieNume;
+
   document.querySelectorAll('.materie-card').forEach(c => c.classList.remove('active'));
-  const card = document.querySelector(`.materie-card[data-materie="${materie}"]`);
+  document.querySelectorAll('.materie-check').forEach(c => c.style.display = 'none');
+
+  const card = document.querySelector(`.materie-card[data-materie="${materieId}"]`);
   if (card) card.classList.add('active');
 
-  // Update checkmarks
-  document.querySelectorAll('.materie-check').forEach(c => c.style.display = 'none');
-  const check = document.getElementById(`check-${materie}`);
+  const check = document.getElementById(`check-${materieId}`);
   if (check) check.style.display = 'flex';
 
-  // Update bara
-  const info = {
-    POO: { icon: '💻', nume: 'Programare Orientata pe Obiecte' },
-    SO:  { icon: '🖥️', nume: 'Sisteme de Operare' }
-  };
-  const m = info[materie] || { icon: '📚', nume: materie };
-  document.getElementById('materie-bar-icon').textContent = m.icon;
-  document.getElementById('materie-bar-nume').textContent = m.nume;
+  const barIcon = document.getElementById('materie-bar-icon');
+  const barNume = document.getElementById('materie-bar-nume');
+  if (barIcon) barIcon.textContent = '📚';
+  if (barNume) barNume.textContent = materieNume;
 
-  // Quick buttons
-  document.getElementById('quick-POO').style.display = materie === 'POO' ? 'flex' : 'none';
-  document.getElementById('quick-SO').style.display  = materie === 'SO'  ? 'flex' : 'none';
-
-  // Placeholder textarea
-  const placeholders = {
-    POO: 'Scrie intrebarea ta despre POO... Ex: Ce este mostenirea?',
-    SO:  'Scrie intrebarea ta despre SO... Ex: Ce este un deadlock?'
-  };
   const ta = document.getElementById('intrebare-input');
-  if (ta) ta.placeholder = placeholders[materie] || 'Scrie intrebarea ta...';
+  if (ta) ta.placeholder = `Scrie intrebarea ta despre ${materieNume}...`;
 
-  // Ascunde raspuns anterior
   const rc = document.getElementById('raspuns-card');
   if (rc) rc.style.display = 'none';
+
+  const quickPOO = document.getElementById('quick-POO');
+  const quickSO = document.getElementById('quick-SO');
+  if (quickPOO) quickPOO.style.display = 'none';
+  if (quickSO) quickSO.style.display = 'none';
 }
 
 // ===== NOTA PILLS =====
@@ -165,15 +206,21 @@ async function intreaba() {
   const intrebare = document.getElementById('intrebare-input').value.trim();
   if (!intrebare) { showToast('Scrie o intrebare mai intai!', 'error'); return; }
   if (intrebare.length > 1000) { showToast('Intrebarea e prea lunga!', 'error'); return; }
+  if (!state.materie_id) { showToast('Selecteaza o materie mai intai!', 'error'); return; }
 
   setLoadingBtn('intreaba-btn', 'btn-text', 'btn-spinner', true);
 
   try {
-    const endpoint = state.materie === 'SO' ? '/api/so/intreaba' : '/api/intreaba';
-    const res = await fetch(`${API_URL}${endpoint}`, {
+    const res = await fetch(`${API_URL}/api/intreaba`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ intrebare, nivel_nota: state.nota })
+      body: JSON.stringify({
+        intrebare,
+        nivel_nota: state.nota,
+        materie_id: state.materie_id,
+        materie_nume: state.materie,
+        student_id: state.student_id
+      })
     });
 
     const data = await res.json();
@@ -206,12 +253,7 @@ function showRaspuns(raspuns, intrebare) {
 
   text.innerHTML = formatText(raspuns);
   badge.textContent = `Nota ${state.nota}`;
-
-  const surse = {
-    POO: '📖 Sursa: Breazu Macarie — Programare OO',
-    SO:  '📖 Sursa: Silberschatz — Operating System Concepts'
-  };
-  sursa.textContent = surse[state.materie] || '📖 ULBS Coach AI';
+  sursa.textContent = `📖 Sursa: ${state.materie || 'ULBS Coach AI'}`;
 
   card.style.display = 'block';
   card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -263,6 +305,7 @@ async function genereazaCartonase() {
   const numar = parseInt(document.getElementById('numar-cartonase').value);
 
   if (!topic) { showToast('Scrie un topic mai intai!', 'error'); return; }
+  if (!state.materie_id) { showToast('Selecteaza o materie mai intai!', 'error'); return; }
 
   const btn = document.getElementById('genereaza-btn');
   btn.disabled = true;
@@ -272,7 +315,14 @@ async function genereazaCartonase() {
     const res = await fetch(`${API_URL}/api/cartonase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, numar, materie: state.materie, tip: 'teorie' })
+      body: JSON.stringify({
+        topic,
+        numar,
+        materie_id: state.materie_id,
+        materie_nume: state.materie,
+        student_id: state.student_id,
+        tip: 'teorie'
+      })
     });
 
     const data = await res.json();
@@ -280,7 +330,7 @@ async function genereazaCartonase() {
     if (data.cartonase && data.cartonase.length > 0) {
       state.cartonaseData = data.cartonase;
       afiseazaCartonase(data.cartonase);
-      showToast(`${data.cartonase.length} cartonase generate pentru ${state.materie}!`, 'success');
+      showToast(`${data.cartonase.length} cartonase generate!`, 'success');
     } else {
       showToast(data.error || 'Eroare la generare!', 'error');
     }
@@ -357,6 +407,7 @@ async function startQuiz() {
   const tip   = document.getElementById('quiz-tip').value;
 
   if (!topic) { showToast('Scrie un topic mai intai!', 'error'); return; }
+  if (!state.materie_id) { showToast('Selecteaza o materie mai intai!', 'error'); return; }
 
   const btn = document.getElementById('start-quiz-btn');
   btn.disabled = true;
@@ -366,7 +417,14 @@ async function startQuiz() {
     const res = await fetch(`${API_URL}/api/cartonase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, numar, materie: state.materie, tip })
+      body: JSON.stringify({
+        topic,
+        numar,
+        materie_id: state.materie_id,
+        materie_nume: state.materie,
+        student_id: state.student_id,
+        tip
+      })
     });
 
     const data = await res.json();
@@ -378,6 +436,7 @@ async function startQuiz() {
         scorTotal: 0,
         numar: data.cartonase.length,
         materie: state.materie,
+        materie_id: state.materie_id,
         topic,
         tip,
         startTime: Date.now(),
@@ -419,7 +478,6 @@ function afiseazaIntrebareQuiz() {
   document.getElementById('quiz-raspuns-input').value = '';
   document.getElementById('quiz-char-count').textContent = '0 / 1500';
 
-  // Timer
   startTimer();
 }
 
@@ -579,7 +637,6 @@ async function afiseazaRezultatFinal() {
   document.getElementById('rez-gresite').textContent = gresite;
   document.getElementById('rez-timp').textContent    = `${timpTotal}s`;
 
-  // Ce trebuie sa inveti (intrebarile gresite)
   const greseliItems = q.raspunsuri.filter(r => r.nota < 6);
   if (greseliItems.length > 0) {
     const ceInvataEl = document.getElementById('ce-invata-section');
@@ -600,7 +657,6 @@ async function afiseazaRezultatFinal() {
   document.getElementById('quiz-rezultat').style.flexDirection = 'column';
   document.getElementById('quiz-rezultat').style.gap = '1rem';
 
-  // Salveaza sesiunea in DB
   try {
     await fetch(`${API_URL}/api/quiz/sesiune`, {
       method: 'POST',
@@ -626,7 +682,8 @@ function resetQuiz() {
   stopTimer();
   state.quiz = {
     intrebari: [], indexCurent: 0, scorTotal: 0,
-    numar: 0, materie: state.materie, topic: '', tip: 'teorie',
+    numar: 0, materie: state.materie, materie_id: state.materie_id,
+    topic: '', tip: 'teorie',
     startTime: null, raspunsuri: [], timerInterval: null, timpRamas: 120
   };
 
@@ -651,7 +708,7 @@ function salveazaIntrebareaQuiz() {
 // ===== STATISTICI =====
 async function loadStatistici() {
   try {
-    const res = await fetch(`${API_URL}/api/statistici`);
+    const res = await fetch(`${API_URL}/api/statistici?student_id=${state.student_id}`);
     const data = await res.json();
 
     const total = data.length;
@@ -659,11 +716,8 @@ async function loadStatistici() {
       return new Date(item.data).toDateString() === new Date().toDateString();
     }).length;
 
-    // Hero stats
     updateEl('hero-total', total);
     updateEl('hero-streak', getStreak());
-
-    // Statistici tab
     updateEl('stat-total', total);
     updateEl('stat-azi', azi);
 
@@ -673,7 +727,7 @@ async function loadStatistici() {
 
       data.forEach(item => {
         noteCounts[item.nota] = (noteCounts[item.nota] || 0) + 1;
-        const m = item.materie || 'POO';
+        const m = item.materie || 'General';
         materieCounts[m] = (materieCounts[m] || 0) + 1;
       });
 
@@ -682,7 +736,6 @@ async function loadStatistici() {
       );
       updateEl('stat-nivel', notaPref);
 
-      // Grafic materii
       const chart = document.getElementById('materie-chart');
       if (chart) {
         const max = Math.max(...Object.values(materieCounts));
@@ -702,7 +755,6 @@ async function loadStatistici() {
       if (chart) chart.innerHTML = '<p style="color:var(--text-4);font-size:13px;text-align:center;padding:1rem">Nu ai intrebari inca.</p>';
     }
 
-    // Lista istoric
     const lista = document.getElementById('statistici-lista');
     if (lista) {
       if (data.length === 0) {
@@ -711,7 +763,7 @@ async function loadStatistici() {
         lista.innerHTML = data.slice(0, 15).map(item => `
           <div class="istoric-item">
             <span class="istoric-intrebare">${escapeHtml(item.intrebare)}</span>
-            <span class="istoric-materie">${item.materie || 'POO'}</span>
+            <span class="istoric-materie">${item.materie || 'General'}</span>
             <span class="istoric-nota">Nota ${item.nota}</span>
             <span class="istoric-data">${formatData(item.data)}</span>
           </div>
@@ -726,7 +778,7 @@ async function loadStatistici() {
 
 async function loadQuizIstoric() {
   try {
-    const res = await fetch(`${API_URL}/api/statistici/quiz?limit=5`);
+    const res = await fetch(`${API_URL}/api/statistici/quiz?limit=5&student_id=${state.student_id}`);
     const data = await res.json();
 
     updateEl('hero-quiz', data.length);
@@ -755,7 +807,7 @@ async function loadQuizIstoric() {
 
 async function loadQuizIstoricFull() {
   try {
-    const res = await fetch(`${API_URL}/api/statistici/quiz?limit=20`);
+    const res = await fetch(`${API_URL}/api/statistici/quiz?limit=20&student_id=${state.student_id}`);
     const data = await res.json();
 
     const lista = document.getElementById('quiz-istoric-full');
@@ -785,7 +837,7 @@ async function salveazaIntrebareAPI(materie, intrebare, raspuns, dificultate) {
     const res = await fetch(`${API_URL}/api/bookmark`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ materie, intrebare, raspuns, dificultate })
+      body: JSON.stringify({ materie, intrebare, raspuns, dificultate, student_id: state.student_id })
     });
     const data = await res.json();
     if (data.success) {
@@ -799,7 +851,8 @@ async function salveazaIntrebareAPI(materie, intrebare, raspuns, dificultate) {
 async function loadSalvate() {
   const materie = document.getElementById('filter-materie-salvate')?.value || '';
   try {
-    const url = materie ? `${API_URL}/api/bookmarks?materie=${materie}` : `${API_URL}/api/bookmarks`;
+    let url = `${API_URL}/api/bookmarks?student_id=${state.student_id}`;
+    if (materie) url += `&materie=${materie}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -892,14 +945,15 @@ async function uploadPdf() {
   const btnSpinner = document.getElementById('upload-btn-spinner');
 
   btn.disabled = true;
-  btnText.style.display = 'none';
-  btnSpinner.style.display = 'inline';
+  if (btnText) btnText.style.display = 'none';
+  if (btnSpinner) btnSpinner.style.display = 'inline';
 
   try {
     const formData = new FormData();
     formData.append('pdf', selectedPdfFile);
     formData.append('materie_nume', materie);
     formData.append('profesor', profesor);
+    formData.append('student_id', state.student_id);
 
     const res = await fetch(`${API_URL}/api/upload-pdf`, {
       method: 'POST',
@@ -914,6 +968,7 @@ async function uploadPdf() {
       document.getElementById('upload-materie').value = '';
       document.getElementById('upload-profesor').value = '';
       loadCarti();
+      incarcaMaterii();
     } else {
       showToast(data.error || 'Eroare la procesare!', 'error');
     }
@@ -923,13 +978,13 @@ async function uploadPdf() {
   }
 
   btn.disabled = false;
-  btnText.style.display = 'inline';
-  btnSpinner.style.display = 'none';
+  if (btnText) btnText.style.display = 'inline';
+  if (btnSpinner) btnSpinner.style.display = 'none';
 }
 
 async function loadCarti() {
   try {
-    const res = await fetch(`${API_URL}/api/carti`);
+    const res = await fetch(`${API_URL}/api/carti?student_id=${state.student_id}`);
     const data = await res.json();
 
     const lista = document.getElementById('carti-lista');
@@ -941,8 +996,8 @@ async function loadCarti() {
       lista.innerHTML = data.map(c => `
         <div class="carte-item">
           <div class="carte-info">
-            <h4>📚 ${escapeHtml(c.materie_nume)}</h4>
-            <p>${escapeHtml(c.profesor || 'Profesor necunoscut')} · ${(c.size_chars / 1000).toFixed(0)}k caractere · ${formatData(c.created_at)}</p>
+            <h4>📚 ${escapeHtml(c.materie_nume || c.nume)}</h4>
+            <p>${escapeHtml(c.profesor || 'Profesor necunoscut')} · ${formatData(c.created_at)}</p>
           </div>
           <span class="tag-new">✓ Activ</span>
         </div>
@@ -963,7 +1018,7 @@ function incrementStreak() {
   const lastDay = localStorage.getItem('ulbs-streak-day');
   let streak = getStreak();
 
-  if (lastDay === today) return; // Deja incrementat azi
+  if (lastDay === today) return;
 
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
@@ -973,7 +1028,7 @@ function incrementStreak() {
   } else if (!lastDay) {
     streak = 1;
   } else {
-    streak = 1; // S-a rupt streak-ul
+    streak = 1;
   }
 
   localStorage.setItem('ulbs-streak', streak);

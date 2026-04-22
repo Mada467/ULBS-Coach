@@ -1,37 +1,35 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
-from database import (
+from baza_date import (
     get_connection, init_db, salveaza_intrebare, get_statistici,
     salveaza_sesiune_quiz, salveaza_raspuns_quiz, get_istoric_quiz,
-    salveaza_intrebare_bookmark, get_bookmarks,
-    salveaza_carte_uploadata, get_carti_uploadate
+    salveaza_bookmark, get_bookmarks,
+    salveaza_material, get_materii, adauga_materie, get_text_materie
 )
-from ai_service import get_raspuns, genereaza_cu_retry
-from cartonase import genereaza_cartonase
-from so_service import get_raspuns_so
+from services.gemini_client import genereaza_cu_retry
+from routes.profesor_ai import get_raspuns, get_raspuns_fara_materie
 import os
 import json
 import uuid
+import fitz
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Directorul pentru carti uploadate
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'carti')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Initializeaza schema DB la pornire
 init_db()
 
 
-# ===== FRONTEND ROUTES =====
+# ===== FRONTEND =====
 
 @app.route('/app')
 def frontend():
-    return send_from_directory('frontend', 'ULBS-Coach.html')
+    return send_from_directory('frontend', 'index.html')
 
 @app.route('/app/<path:filename>')
 def frontend_static(filename):
@@ -39,19 +37,16 @@ def frontend_static(filename):
 
 @app.route('/')
 def home():
-    return jsonify({'status': 'ULBS Coach API functioneaza!', 'versiune': '2.0'})
+    return jsonify({'status': 'ULBS Coach API functioneaza!', 'versiune': '3.0'})
 
 
-# ===== HELPER: VERIFICARE ETICA =====
+# ===== HELPERS =====
 
-def verifica_etica(intrebare, materie='POO'):
-    """Verifica daca intrebarea este relevanta si adecvata."""
+def verifica_etica(intrebare, materie_nume=''):
     prompt = f"""Esti un sistem de moderare pentru o aplicatie educationala universitara (ULBS).
-Materia curenta: {materie}
+Materia curenta: {materie_nume}
 
-Verifica daca aceasta intrebare este:
-1. Relevanta pentru materia {materie}
-2. Adecvata pentru un context academic
+Verifica daca aceasta intrebare este adecvata pentru un context academic.
 
 INTREBARE: {intrebare}
 
@@ -62,55 +57,39 @@ Raspunde DOAR cu JSON (fara markdown):
 }}
 """
     try:
-        text = genereaza_cu_retry(prompt)
-        text = text.strip()
-        if '```json' in text:
-            text = text.split('```json')[1].split('```')[0].strip()
-        elif '```' in text:
-            text = text.split('```')[1].split('```')[0].strip()
+        text = genereaza_cu_retry(prompt).strip()
+        if '```' in text:
+            text = text.split('```')[1].split('```')[0].replace('json', '').strip()
         return json.loads(text)
     except Exception as e:
-        print(f"[ETICA] Eroare verificare: {e}")
+        print(f"[ETICA] Eroare: {e}")
         return {"permisa": True, "motiv": ""}
 
 
-# ===== QUIZ: EVALUARE HELPER =====
-
-def evalueaza_raspuns_ai(intrebare, raspuns_student, raspuns_corect, materie='POO'):
-    """Evalueaza raspunsul unui student cu AI si ofera explicatii."""
-    prompt = f"""Esti un profesor strict dar corect de {materie} la ULBS.
+def evalueaza_raspuns_ai(intrebare, raspuns_student, raspuns_corect, materie_nume=''):
+    prompt = f"""Esti un profesor strict dar corect la ULBS.
+Materia: {materie_nume}
 
 INTREBAREA: {intrebare}
 RASPUNSUL CORECT: {raspuns_corect}
 RASPUNSUL STUDENTULUI: {raspuns_student}
 
-Evalueaza raspunsul studentului pe o scara de la 1 la 10 si ofera:
-1. O nota numerica (1-10)
-2. Feedback constructiv (ce a facut bine, ce a gresit)
-3. O explicatie clara a raspunsului corect
-
-Raspunde DOAR cu JSON (fara markdown):
+Evalueaza raspunsul studentului si raspunde DOAR cu JSON (fara markdown):
 {{
     "nota": 8,
-    "feedback": "Ai inteles conceptul principal, dar...",
+    "feedback": "Ce a facut bine si ce a gresit...",
     "explicatie": "Raspunsul complet corect este...",
     "corect": true
 }}
 """
     try:
-        text = genereaza_cu_retry(prompt)
-        text = text.strip()
-        if '```json' in text:
-            text = text.split('```json')[1].split('```')[0].strip()
-        elif '```' in text:
-            text = text.split('```')[1].split('```')[0].strip()
-
-        # Gaseste JSON-ul
+        text = genereaza_cu_retry(prompt).strip()
+        if '```' in text:
+            text = text.split('```')[1].split('```')[0].replace('json', '').strip()
         start = text.find('{')
         end = text.rfind('}')
         if start != -1 and end != -1:
             text = text[start:end + 1]
-
         return json.loads(text)
     except Exception as e:
         print(f"[QUIZ] Eroare evaluare: {e}")
@@ -122,14 +101,30 @@ Raspunde DOAR cu JSON (fara markdown):
         }
 
 
-# ===== API ROUTES =====
+# ===== MATERII =====
+
+@app.route('/api/materii', methods=['GET'])
+def get_materii_route():
+    """Returneaza materiile dinamice ale studentului din DB."""
+    student_id = request.args.get('student_id', 'default')
+    materii = get_materii(student_id)
+    return jsonify([dict(m) for m in materii])
+
+
+# ===== INTREABA AI — ROUTE UNIFICAT =====
 
 @app.route('/api/intreaba', methods=['POST'])
 def intreaba():
-    """Endpoint pentru intrebari POO."""
+    """
+    Route unificat pentru orice materie.
+    Primeste materie_id si student_id, citeste cartea din DB.
+    """
     data = request.get_json()
     intrebare = data.get('intrebare', '').strip()
     nivel_nota = data.get('nivel_nota', '7-8')
+    materie_id = data.get('materie_id')          # ID din DB
+    materie_nume = data.get('materie_nume', '')   # Numele materiei pentru context
+    student_id = data.get('student_id', 'default')
 
     if not intrebare:
         return jsonify({'error': 'Intrebarea lipseste!'}), 400
@@ -138,120 +133,112 @@ def intreaba():
         return jsonify({'error': 'Intrebarea este prea lunga (max 1000 caractere)!'}), 400
 
     # Verificare etica
-    etica = verifica_etica(intrebare, 'POO')
+    etica = verifica_etica(intrebare, materie_nume)
     if not etica.get('permisa', True):
         return jsonify({
             'error': 'intrebare_nepermisa',
             'motiv': etica.get('motiv', 'Intrebarea nu este adecvata.')
         }), 400
 
-    raspuns = get_raspuns(intrebare, nivel_nota, materie='POO')
+    # Genereaza raspuns din cartea materiei
+    if materie_id:
+        raspuns = get_raspuns(intrebare, materie_id, student_id, nivel_nota)
+    else:
+        raspuns = get_raspuns_fara_materie(intrebare, nivel_nota)
 
-    # Salvare in DB (non-blocking)
-    salveaza_intrebare(1, 'POO', intrebare, nivel_nota)
-
-    return jsonify({'raspuns': raspuns})
-
-
-@app.route('/api/so/intreaba', methods=['POST'])
-def intreaba_so():
-    """Endpoint pentru intrebari SO."""
-    data = request.get_json()
-    intrebare = data.get('intrebare', '').strip()
-    nivel_nota = data.get('nivel_nota', '7-8')
-
-    if not intrebare:
-        return jsonify({'error': 'Intrebarea lipseste!'}), 400
-
-    # Verificare etica
-    etica = verifica_etica(intrebare, 'SO')
-    if not etica.get('permisa', True):
-        return jsonify({
-            'error': 'intrebare_nepermisa',
-            'motiv': etica.get('motiv', 'Intrebarea nu este adecvata.')
-        }), 400
-
-    raspuns = get_raspuns_so(intrebare, nivel_nota)
-
-    # Salvare in DB (non-blocking)
-    salveaza_intrebare(2, 'SO', intrebare, nivel_nota)
+    # Salveaza in statistici
+    salveaza_intrebare(student_id, materie_id, materie_nume, intrebare, nivel_nota)
 
     return jsonify({'raspuns': raspuns})
 
 
-@app.route('/api/statistici', methods=['GET'])
-def statistici():
-    """Returneaza statisticile si istoricul intrebarilor."""
-    limit = request.args.get('limit', 20, type=int)
-    result = get_statistici(limit)
-    return jsonify(result)
-
-
-@app.route('/api/statistici/quiz', methods=['GET'])
-def statistici_quiz():
-    """Returneaza istoricul sesiunilor de quiz."""
-    limit = request.args.get('limit', 10, type=int)
-    result = get_istoric_quiz(limit)
-    return jsonify(result)
-
+# ===== CARTONASE =====
 
 @app.route('/api/cartonase', methods=['POST'])
 def cartonase():
-    """Genereaza cartonase de studiu pentru materia selectata."""
     data = request.get_json()
     topic = data.get('topic', '').strip()
     numar = data.get('numar', 5)
-    materie = data.get('materie', 'POO').upper()
-    tip = data.get('tip', 'teorie')  # 'teorie' sau 'cod'
+    materie_id = data.get('materie_id')
+    materie_nume = data.get('materie_nume', '')
+    student_id = data.get('student_id', 'default')
+    tip = data.get('tip', 'teorie')
 
     if not topic:
         return jsonify({'error': 'Topicul lipseste!'}), 400
 
-    # Validare materie
-    materii_valide = ['POO', 'SO']
-    if materie not in materii_valide:
-        materie = 'POO'
+    # Ia contextul din carte daca exista
+    context = ''
+    if materie_id:
+        from routes.profesor_ai import cauta_fragmente_relevante
+        text_complet = get_text_materie(materie_id, student_id)
+        if text_complet:
+            fragmente = cauta_fragmente_relevante(topic, text_complet, top_n=5)
+            context = '\n\n'.join(fragmente)
 
+    context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
+
+    prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
+Topic: {topic}
+Tip: {tip} (teorie = concepte teoretice, cod = exemple de cod){context_prompt}
+
+Raspunde DOAR cu JSON valid (fara markdown):
+{{
+    "cartonase": [
+        {{
+            "intrebare": "...",
+            "raspuns": "...",
+            "dificultate": "usor|mediu|greu"
+        }}
+    ]
+}}
+"""
     try:
-        cartonase_list = genereaza_cartonase(topic, numar, materie, tip)
-        return jsonify({'cartonase': cartonase_list, 'materie': materie})
+        text = genereaza_cu_retry(prompt).strip()
+        if '```' in text:
+            text = text.split('```')[1].split('```')[0].replace('json', '').strip()
+        start = text.find('{')
+        end = text.rfind('}')
+        if start != -1 and end != -1:
+            text = text[start:end + 1]
+        result = json.loads(text)
+        return jsonify({'cartonase': result.get('cartonase', []), 'materie': materie_nume})
     except Exception as e:
-        print(f"[APP] Eroare cartonase: {e}")
+        print(f"[CARTONASE] Eroare: {e}")
         return jsonify({'error': 'AI indisponibil momentan. Incearca din nou!'}), 503
 
 
+# ===== QUIZ =====
+
 @app.route('/api/quiz/evalueaza', methods=['POST'])
 def evalueaza_raspuns():
-    """Evalueaza un raspuns de quiz cu AI."""
     data = request.get_json()
     intrebare = data.get('intrebare', '')
     raspuns_student = data.get('raspuns_student', '').strip()
     raspuns_corect = data.get('raspuns_corect', '')
-    materie = data.get('materie', 'POO').upper()
+    materie_nume = data.get('materie_nume', data.get('materie', ''))
 
     if not intrebare or not raspuns_student:
         return jsonify({'error': 'Date incomplete!'}), 400
 
-    rezultat = evalueaza_raspuns_ai(intrebare, raspuns_student, raspuns_corect, materie)
+    rezultat = evalueaza_raspuns_ai(intrebare, raspuns_student, raspuns_corect, materie_nume)
     return jsonify(rezultat)
 
 
 @app.route('/api/quiz/sesiune', methods=['POST'])
 def salveaza_sesiune():
-    """Salveaza o sesiune de quiz completata."""
     data = request.get_json()
-    materie = data.get('materie', 'POO')
+    student_id = data.get('student_id', 'default')
+    materie = data.get('materie_nume', data.get('materie', ''))
     topic = data.get('topic', '')
     tip = data.get('tip', 'teorie')
     numar_intrebari = data.get('numar_intrebari', 0)
     scor_final = data.get('scor_final', 0)
     nota_finala = data.get('nota_finala', 0)
 
-    sesiune_id = salveaza_sesiune_quiz(materie, topic, tip, numar_intrebari, scor_final, nota_finala)
+    sesiune_id = salveaza_sesiune_quiz(student_id, materie, topic, tip, numar_intrebari, scor_final, nota_finala)
 
-    # Salveaza raspunsurile individuale
-    raspunsuri = data.get('raspunsuri', [])
-    for r in raspunsuri:
+    for r in data.get('raspunsuri', []):
         if sesiune_id:
             salveaza_raspuns_quiz(
                 sesiune_id,
@@ -265,11 +252,29 @@ def salveaza_sesiune():
     return jsonify({'success': True, 'sesiune_id': sesiune_id})
 
 
+# ===== STATISTICI =====
+
+@app.route('/api/statistici', methods=['GET'])
+def statistici():
+    student_id = request.args.get('student_id', 'default')
+    limit = request.args.get('limit', 20, type=int)
+    return jsonify(get_statistici(student_id, limit))
+
+
+@app.route('/api/statistici/quiz', methods=['GET'])
+def statistici_quiz():
+    student_id = request.args.get('student_id', 'default')
+    limit = request.args.get('limit', 10, type=int)
+    return jsonify(get_istoric_quiz(student_id, limit))
+
+
+# ===== BOOKMARKS =====
+
 @app.route('/api/bookmark', methods=['POST'])
-def adauga_bookmark():
-    """Salveaza o intrebare in bookmarks."""
+def adauga_bookmark_route():
     data = request.get_json()
-    materie = data.get('materie', 'POO')
+    student_id = data.get('student_id', 'default')
+    materie = data.get('materie', '')
     intrebare = data.get('intrebare', '').strip()
     raspuns = data.get('raspuns', '')
     dificultate = data.get('dificultate', 'mediu')
@@ -277,31 +282,28 @@ def adauga_bookmark():
     if not intrebare:
         return jsonify({'error': 'Intrebarea lipseste!'}), 400
 
-    success = salveaza_intrebare_bookmark(materie, intrebare, raspuns, dificultate)
+    success = salveaza_bookmark(student_id, materie, intrebare, raspuns, dificultate)
     return jsonify({'success': success})
 
 
 @app.route('/api/bookmarks', methods=['GET'])
 def get_bookmarks_route():
-    """Returneaza intrebarile salvate."""
+    student_id = request.args.get('student_id', 'default')
     materie = request.args.get('materie')
-    result = get_bookmarks(materie)
-    # Converteste obiectele Row in dict
-    return jsonify([dict(r) for r in result])
+    return jsonify([dict(r) for r in get_bookmarks(student_id, materie)])
 
+
+# ===== UPLOAD PDF =====
 
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf():
-    """
-    Upload PDF al unui profesor si proceseaza-l in text.
-    Permite studentilor sa adauge materiile proprii.
-    """
     if 'pdf' not in request.files:
         return jsonify({'error': 'Nu a fost trimis niciun fisier PDF!'}), 400
 
     pdf_file = request.files['pdf']
     materie_nume = request.form.get('materie_nume', '').strip()
     profesor = request.form.get('profesor', '').strip()
+    student_id = request.form.get('student_id', 'default').strip()
 
     if not materie_nume:
         return jsonify({'error': 'Numele materiei este obligatoriu!'}), 400
@@ -310,17 +312,9 @@ def upload_pdf():
         return jsonify({'error': 'Fisierul trebuie sa fie PDF!'}), 400
 
     try:
-        import fitz  # PyMuPDF
-
-        # Salveaza PDF temporar
-        unique_id = str(uuid.uuid4())[:8]
-        pdf_filename = f"carte_{unique_id}.pdf"
-        pdf_path = os.path.join(UPLOAD_FOLDER, pdf_filename)
-        pdf_file.save(pdf_path)
-
-        # Extrage textul
+        pdf_bytes = pdf_file.read()
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         text = ""
-        doc = fitz.open(pdf_path)
         for page in doc:
             page_text = page.get_text()
             if len(page_text.strip()) > 50:
@@ -328,30 +322,23 @@ def upload_pdf():
         doc.close()
 
         if len(text) < 100:
-            os.remove(pdf_path)
             return jsonify({'error': 'PDF-ul nu contine text suficient sau este scanat!'}), 400
 
-        # Salveaza textul
-        txt_filename = f"carte_{unique_id}.txt"
-        txt_path = os.path.join(UPLOAD_FOLDER, txt_filename)
-        with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(text)
+        # Creeaza materia in DB si salveaza textul
+        materie_id = adauga_materie(student_id, materie_nume, profesor)
+        if not materie_id:
+            return jsonify({'error': 'Eroare la crearea materiei!'}), 500
 
-        # Sterge PDF-ul (pastram doar textul)
-        os.remove(pdf_path)
-
-        # Salveaza in DB
-        salveaza_carte_uploadata(materie_nume, profesor, txt_filename, txt_path, len(text))
+        salveaza_material(materie_id, student_id, pdf_file.filename, text)
 
         return jsonify({
             'success': True,
+            'materie_id': materie_id,
             'materie': materie_nume,
             'caractere': len(text),
-            'mesaj': f'PDF procesat cu succes! {len(text)} caractere extrase.'
+            'mesaj': f'PDF procesat! {len(text)} caractere extrase.'
         })
 
-    except ImportError:
-        return jsonify({'error': 'PyMuPDF nu este instalat pe server!'}), 500
     except Exception as e:
         print(f"[UPLOAD] Eroare: {e}")
         return jsonify({'error': f'Eroare la procesarea PDF-ului: {str(e)}'}), 500
@@ -359,9 +346,20 @@ def upload_pdf():
 
 @app.route('/api/carti', methods=['GET'])
 def get_carti():
-    """Returneaza lista cartilor uploadate."""
-    carti = get_carti_uploadate()
-    return jsonify([dict(c) for c in carti])
+    """Returneaza materiile ca 'carti' pentru compatibilitate frontend."""
+    student_id = request.args.get('student_id', 'default')
+    materii = get_materii(student_id)
+    # Transforma formatul pentru frontend
+    result = []
+    for m in materii:
+        result.append({
+            'materie_id': m['id'],
+            'materie_nume': m['nume'],
+            'profesor': m.get('profesor', ''),
+            'size_chars': 0,  # optional: poti face un COUNT din materiale
+            'created_at': str(m['created_at'])
+        })
+    return jsonify(result)
 
 
 if __name__ == '__main__':
