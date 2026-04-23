@@ -1,5 +1,3 @@
-from multiprocessing import context
-
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -14,7 +12,6 @@ from routes.profesor_ai import get_raspuns, get_raspuns_fara_materie
 from services.carte_procesor import extract_text_from_pdf
 import os
 import json
-import uuid
 import tempfile
 import fitz
 
@@ -171,9 +168,8 @@ def cartonase():
             fragmente = cauta_fragmente_relevante(topic, text_complet, top_n=5)
             context = '\n\n'.join(fragmente)
 
-  context = context[:3000] if context else ""
+    context = context[:3000] if context else ""
     context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
- 
 
     prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
 Topic: {topic}
@@ -190,7 +186,7 @@ Raspunde DOAR cu JSON valid (fara markdown):
     ]
 }}
 """
-   try:
+    try:
         text = genereaza_cu_retry(prompt).strip()
         if '```' in text:
             text = text.split('```')[1].split('```')[0].replace('json', '').strip()
@@ -315,13 +311,11 @@ def upload_pdf():
         return jsonify({'error': 'Fisierul trebuie sa fie PDF!'}), 400
 
     try:
-        # Salveaza PDF temporar
         pdf_bytes = pdf_file.read()
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
             tmp.write(pdf_bytes)
             tmp_path = tmp.name
 
-        # Incearca extragere text normal mai intai
         text = ""
         doc = fitz.open(tmp_path)
         for page in doc:
@@ -330,18 +324,15 @@ def upload_pdf():
                 text += page_text + "\n"
         doc.close()
 
-        # Daca textul e insuficient, foloseste OCR
         if len(text) < 100:
             print("[UPLOAD] Text insuficient, incerc OCR...", flush=True)
             text = extract_text_from_pdf(tmp_path) or ""
 
-        # Sterge fisierul temporar
         os.remove(tmp_path)
 
         if len(text) < 100:
-            return jsonify({'error': 'PDF-ul nu contine text suficient sau este scanat si OCR-ul nu a putut extrage text!'}), 400
+            return jsonify({'error': 'PDF-ul nu contine text suficient!'}), 400
 
-        # Creeaza materia in DB si salveaza textul
         materie_id = adauga_materie(student_id, materie_nume, profesor)
         if not materie_id:
             return jsonify({'error': 'Eroare la crearea materiei!'}), 500
