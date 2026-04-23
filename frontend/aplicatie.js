@@ -483,7 +483,7 @@ function afiseazaIntrebareQuiz() {
 
 function startTimer() {
   stopTimer();
-  state.quiz.timpRamas = 120;
+  state.quiz.timpRamas = state.quiz.tip === 'cod' ? 600 : 120;
   updateTimerDisplay();
 
   state.quiz.timerInterval = setInterval(() => {
@@ -693,7 +693,7 @@ function resetQuiz() {
   document.getElementById('quiz-rezultat').style.display        = 'none';
   document.getElementById('quiz-topic-input').value = '';
   document.getElementById('quiz-progress-fill').style.width = '0%';
-  document.getElementById('timer-display').textContent = '02:00';
+  document.getElementById('timer-display').textContent = state.quiz.tip === 'cod' ? '10:00' : '02:00';
 
   loadQuizIstoric();
 }
