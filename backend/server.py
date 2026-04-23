@@ -1,3 +1,5 @@
+from multiprocessing import context
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -169,7 +171,8 @@ def cartonase():
             fragmente = cauta_fragmente_relevante(topic, text_complet, top_n=5)
             context = '\n\n'.join(fragmente)
 
-    context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
+    context = context[:3000] if context else ""
+ context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
 
     prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
 Topic: {topic}
@@ -186,16 +189,22 @@ Raspunde DOAR cu JSON valid (fara markdown):
     ]
 }}
 """
-    try:
+   try:
         text = genereaza_cu_retry(prompt).strip()
         if '```' in text:
             text = text.split('```')[1].split('```')[0].replace('json', '').strip()
-        start = text.find('{')
-        end = text.rfind('}')
+        start = text.find('[')
+        end = text.rfind(']')
         if start != -1 and end != -1:
-            text = text[start:end + 1]
+            text = '{"cartonase":' + text[start:end + 1] + '}'
+        else:
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1:
+                text = text[start:end + 1]
         result = json.loads(text)
-        return jsonify({'cartonase': result.get('cartonase', []), 'materie': materie_nume})
+        cartonase_list = result.get('cartonase', result if isinstance(result, list) else [])
+        return jsonify({'cartonase': cartonase_list, 'materie': materie_nume})
     except Exception as e:
         print(f"[CARTONASE] Eroare: {e}")
         return jsonify({'error': 'AI indisponibil momentan. Incearca din nou!'}), 503
