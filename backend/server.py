@@ -171,8 +171,9 @@ def cartonase():
             fragmente = cauta_fragmente_relevante(topic, text_complet, top_n=5)
             context = '\n\n'.join(fragmente)
 
-    context = context[:3000] if context else ""
- context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
+  context = context[:3000] if context else ""
+    context_prompt = f"\n\nCONTEXT DIN CARTE:\n{context}" if context else ""
+ 
 
     prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
 Topic: {topic}
