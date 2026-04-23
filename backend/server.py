@@ -173,18 +173,15 @@ def cartonase():
 
     prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
 Topic: {topic}
-Tip: {tip} (teorie = concepte teoretice, cod = exemple de cod){context_prompt}
+Tip: {tip}{context_prompt}
 
-Raspunde DOAR cu JSON valid (fara markdown):
-{{
-    "cartonase": [
-        {{
-            "intrebare": "...",
-            "raspuns": "...",
-            "dificultate": "usor|mediu|greu"
-        }}
-    ]
-}}
+IMPORTANT: Raspunde DOAR cu un array JSON valid. Nu folosi ghilimele duble in valorile campurilor. Nu include cod sursa in raspuns.
+
+Raspunde STRICT in acest format JSON (fara markdown, fara text extra):
+[
+  {{"intrebare": "intrebarea aici", "raspuns": "raspunsul aici", "dificultate": "usor"}},
+  {{"intrebare": "intrebarea 2", "raspuns": "raspunsul 2", "dificultate": "mediu"}}
+]
 """
     try:
         text = genereaza_cu_retry(prompt).strip()
@@ -193,14 +190,15 @@ Raspunde DOAR cu JSON valid (fara markdown):
         start = text.find('[')
         end = text.rfind(']')
         if start != -1 and end != -1:
-            text = '{"cartonase":' + text[start:end + 1] + '}'
+            cartonase_list = json.loads(text[start:end + 1])
         else:
             start = text.find('{')
             end = text.rfind('}')
             if start != -1 and end != -1:
-                text = text[start:end + 1]
-        result = json.loads(text)
-        cartonase_list = result.get('cartonase', result if isinstance(result, list) else [])
+                result = json.loads(text[start:end + 1])
+                cartonase_list = result.get('cartonase', [])
+            else:
+                cartonase_list = []
         return jsonify({'cartonase': cartonase_list, 'materie': materie_nume})
     except Exception as e:
         print(f"[CARTONASE] Eroare: {e}")
