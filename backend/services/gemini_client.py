@@ -10,8 +10,7 @@ client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 MODELE = [
     'gemini-2.5-flash',
     'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash-latest'
+    'gemini-2.0-flash-lite'
 ]
 
 
