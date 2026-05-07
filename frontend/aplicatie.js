@@ -204,6 +204,8 @@ function setIntrebare(text) {
 // ===== INTREABA AI =====
 async function intreaba() {
   const intrebare = document.getElementById('intrebare-input').value.trim();
+  
+  // Validări locale
   if (!intrebare) { showToast('Scrie o intrebare mai intai!', 'error'); return; }
   if (intrebare.length > 1000) { showToast('Intrebarea e prea lunga!', 'error'); return; }
   if (!state.materie_id) { showToast('Selecteaza o materie mai intai!', 'error'); return; }
@@ -225,21 +227,30 @@ async function intreaba() {
 
     const data = await res.json();
 
-    if (data.raspuns) {
+    // Verificăm dacă răspunsul este OK (status 200)
+    if (res.ok && data.raspuns) {
       state.raspunsActual = { intrebare, raspuns: data.raspuns };
       showRaspuns(data.raspuns, intrebare);
       incrementStreak();
       loadStatistici();
       showToast('Raspuns generat!', 'success');
-    } else if (data.error === 'intrebare_nepermisa') {
-      showMesajEtica(data.motiv);
-      showToast('Intrebare nepermisa!', 'error');
-    } else {
+    } 
+    // Aici prindem eroarea de ETICĂ (status 400 trimis de backend)
+    else if (data.error === 'intrebare_nepermisa') {
+      // Folosim showToast pentru a afișa motivul refuzului academic
+      showToast(`⚠️ Refuz Academic: ${data.motiv}`, 'error');
+      
+      // Dacă ai o zonă specială în UI pentru mesaje de sistem, o poți folosi:
+      if (typeof showMesajEtica === "function") {
+        showMesajEtica(data.motiv);
+      }
+    } 
+    else {
       showToast(data.error || 'Eroare la generare!', 'error');
     }
   } catch (err) {
     showToast('Serverul nu raspunde. Verifica daca backend-ul ruleaza!', 'error');
-    console.error(err);
+    console.error('[ERORRE API]:', err);
   }
 
   setLoadingBtn('intreaba-btn', 'btn-text', 'btn-spinner', false);
@@ -933,23 +944,26 @@ function clearUpload() {
 }
 
 async function uploadPdf() {
-  if (!selectedPdfFile) { showToast('Selecteaza un PDF mai intai!', 'error'); return; }
-
+  // Preluăm valorile din input-uri (asigură-te că ID-urile coincid cu HTML-ul tău)
   const materie = document.getElementById('upload-materie').value.trim();
   const profesor = document.getElementById('upload-profesor').value.trim();
-
-  if (!materie) { showToast('Scrie numele materiei!', 'error'); return; }
+  
+  // Validări de bază înainte de trimitere
+  if (!selectedPdfFile) { showToast('Selectează un fișier PDF!', 'error'); return; }
+  if (!materie) { showToast('Introdu numele materiei!', 'error'); return; }
 
   const btn = document.getElementById('upload-btn');
   const btnText = document.getElementById('upload-btn-text');
   const btnSpinner = document.getElementById('upload-btn-spinner');
 
+  // Interfața de Loading
   btn.disabled = true;
   if (btnText) btnText.style.display = 'none';
-  if (btnSpinner) btnSpinner.style.display = 'inline';
+  if (btnSpinner) btnSpinner.style.display = 'inline-block';
 
   try {
     const formData = new FormData();
+    // Cheile de aici ('pdf', 'materie_nume' etc.) trebuie să fie EXACT ca în server.py
     formData.append('pdf', selectedPdfFile);
     formData.append('materie_nume', materie);
     formData.append('profesor', profesor);
@@ -957,8 +971,35 @@ async function uploadPdf() {
 
     const res = await fetch(`${API_URL}/api/upload-pdf`, {
       method: 'POST',
-      body: formData
+      body: formData // NOTA: Nu punem Content-Type header la FormData, se ocupă browserul
     });
+
+    const data = await res.json();
+
+    if (data.success) {
+      showToast(`✅ PDF procesat! ${data.caractere} caractere extrase.`, 'success');
+      
+      // Curățăm formularul după succes
+      if (typeof clearUpload === "function") clearUpload();
+      document.getElementById('upload-materie').value = '';
+      document.getElementById('upload-profesor').value = '';
+      
+      // Refresh la datele din aplicație
+      loadCarti();
+      incarcaMaterii();
+    } else {
+      showToast(data.error || 'Eroare la procesarea PDF-ului!', 'error');
+    }
+  } catch (err) {
+    showToast('Eroare de conexiune la server!', 'error');
+    console.error('[UPLOAD ERROR]:', err);
+  } finally {
+    // Readucem butonul la starea inițială indiferent de rezultat
+    btn.disabled = false;
+    if (btnText) btnText.style.display = 'inline';
+    if (btnSpinner) btnSpinner.style.display = 'none';
+  }
+}
 
     const data = await res.json();
 
