@@ -8,25 +8,28 @@ from baza_date import (
     salveaza_material, get_materii, adauga_materie, get_text_materie
 )
 from services.gemini_client import genereaza_cu_retry
-from routes.profesor_ai import get_raspuns, get_raspuns_fara_materie
+from routes.profesor_ai import get_raspuns, get_raspuns_fara_materie, cauta_fragmente_relevante
 from services.carte_procesor import extract_text_from_pdf
 import os
 import json
 import tempfile
 import fitz
 
+# Încărcăm variabilele de mediu
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
+# Configurare folder de upload
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'carti')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Inițializăm baza de date la pornire
 init_db()
 
 
-# ===== FRONTEND =====
+# ===== SERVIRE FRONTEND =====
 
 @app.route('/app')
 def frontend():
@@ -41,14 +44,12 @@ def home():
     return jsonify({'status': 'ULBS Coach API functioneaza!', 'versiune': '3.0'})
 
 
-# ===== HELPERS =====
+# ===== LOGICĂ AJUTĂTOARE (ETICA & EVALUARE) =====
 
 def verifica_etica(intrebare, materie_nume=''):
     prompt = f"""Esti un sistem de moderare pentru o aplicatie educationala universitara (ULBS).
 Materia curenta: {materie_nume}
-
 Verifica daca aceasta intrebare este adecvata pentru un context academic.
-
 INTREBARE: {intrebare}
 
 Raspunde DOAR cu JSON (fara markdown):
@@ -70,7 +71,6 @@ Raspunde DOAR cu JSON (fara markdown):
 def evalueaza_raspuns_ai(intrebare, raspuns_student, raspuns_corect, materie_nume=''):
     prompt = f"""Esti un profesor strict dar corect la ULBS.
 Materia: {materie_nume}
-
 INTREBAREA: {intrebare}
 RASPUNSUL CORECT: {raspuns_corect}
 RASPUNSUL STUDENTULUI: {raspuns_student}
@@ -102,7 +102,7 @@ Evalueaza raspunsul studentului si raspunde DOAR cu JSON (fara markdown):
         }
 
 
-# ===== MATERII =====
+# ===== RUTE MATERII =====
 
 @app.route('/api/materii', methods=['GET'])
 def get_materii_route():
@@ -111,7 +111,7 @@ def get_materii_route():
     return jsonify([dict(m) for m in materii])
 
 
-# ===== INTREABA AI =====
+# ===== RUTE INTREABA AI =====
 
 @app.route('/api/intreaba', methods=['POST'])
 def intreaba():
@@ -141,11 +141,10 @@ def intreaba():
         raspuns = get_raspuns_fara_materie(intrebare, nivel_nota)
 
     salveaza_intrebare(student_id, materie_id, materie_nume, intrebare, nivel_nota)
-
     return jsonify({'raspuns': raspuns})
 
 
-# ===== CARTONASE =====
+# ===== RUTE CARTONASE =====
 
 @app.route('/api/cartonase', methods=['POST'])
 def cartonase():
@@ -162,7 +161,6 @@ def cartonase():
 
     context = ''
     if materie_id:
-        from routes.profesor_ai import cauta_fragmente_relevante
         text_complet = get_text_materie(materie_id, student_id)
         if text_complet:
             fragmente = cauta_fragmente_relevante(topic, text_complet, top_n=5)
@@ -174,13 +172,9 @@ def cartonase():
     prompt = f"""Esti Prof. ULBS Coach. Genereaza {numar} cartonase de studiu pentru materia "{materie_nume}".
 Topic: {topic}
 Tip: {tip}{context_prompt}
-
-IMPORTANT: Raspunde DOAR cu un array JSON valid. Nu folosi ghilimele duble in valorile campurilor. Nu include cod sursa in raspuns.
-
-Raspunde STRICT in acest format JSON (fara markdown, fara text extra):
+IMPORTANT: Raspunde DOAR cu un array JSON valid.
 [
-  {{"intrebare": "intrebarea aici", "raspuns": "raspunsul aici", "dificultate": "usor"}},
-  {{"intrebare": "intrebarea 2", "raspuns": "raspunsul 2", "dificultate": "mediu"}}
+  {{"intrebare": "intrebare", "raspuns": "raspuns", "dificultate": "usor"}}
 ]
 """
     try:
@@ -192,20 +186,14 @@ Raspunde STRICT in acest format JSON (fara markdown, fara text extra):
         if start != -1 and end != -1:
             cartonase_list = json.loads(text[start:end + 1])
         else:
-            start = text.find('{')
-            end = text.rfind('}')
-            if start != -1 and end != -1:
-                result = json.loads(text[start:end + 1])
-                cartonase_list = result.get('cartonase', [])
-            else:
-                cartonase_list = []
+            cartonase_list = []
         return jsonify({'cartonase': cartonase_list, 'materie': materie_nume})
     except Exception as e:
         print(f"[CARTONASE] Eroare: {e}")
-        return jsonify({'error': 'AI indisponibil momentan. Incearca din nou!'}), 503
+        return jsonify({'error': 'AI indisponibil. Incearca din nou!'}), 503
 
 
-# ===== QUIZ =====
+# ===== RUTE QUIZ =====
 
 @app.route('/api/quiz/evalueaza', methods=['POST'])
 def evalueaza_raspuns():
@@ -249,7 +237,7 @@ def salveaza_sesiune():
     return jsonify({'success': True, 'sesiune_id': sesiune_id})
 
 
-# ===== STATISTICI =====
+# ===== RUTE STATISTICI & BOOKMARKS =====
 
 @app.route('/api/statistici', methods=['GET'])
 def statistici():
@@ -264,8 +252,6 @@ def statistici_quiz():
     limit = request.args.get('limit', 10, type=int)
     return jsonify(get_istoric_quiz(student_id, limit))
 
-
-# ===== BOOKMARKS =====
 
 @app.route('/api/bookmark', methods=['POST'])
 def adauga_bookmark_route():
@@ -290,12 +276,12 @@ def get_bookmarks_route():
     return jsonify([dict(r) for r in get_bookmarks(student_id, materie)])
 
 
-# ===== UPLOAD PDF =====
+# ===== RUTE UPLOAD PDF =====
 
 @app.route('/api/upload-pdf', methods=['POST'])
 def upload_pdf():
     if 'pdf' not in request.files:
-        return jsonify({'error': 'Nu a fost trimis niciun fisier PDF!'}), 400
+        return jsonify({'error': 'Fisier PDF lipsa!'}), 400
 
     pdf_file = request.files['pdf']
     materie_nume = request.form.get('materie_nume', '').strip()
@@ -303,10 +289,7 @@ def upload_pdf():
     student_id = request.form.get('student_id', 'default').strip()
 
     if not materie_nume:
-        return jsonify({'error': 'Numele materiei este obligatoriu!'}), 400
-
-    if not pdf_file.filename.endswith('.pdf'):
-        return jsonify({'error': 'Fisierul trebuie sa fie PDF!'}), 400
+        return jsonify({'error': 'Numele materiei e obligatoriu!'}), 400
 
     try:
         pdf_bytes = pdf_file.read()
@@ -323,7 +306,6 @@ def upload_pdf():
         doc.close()
 
         if len(text) < 100:
-            print("[UPLOAD] Text insuficient, incerc OCR...", flush=True)
             text = extract_text_from_pdf(tmp_path) or ""
 
         os.remove(tmp_path)
@@ -332,37 +314,23 @@ def upload_pdf():
             return jsonify({'error': 'PDF-ul nu contine text suficient!'}), 400
 
         materie_id = adauga_materie(student_id, materie_nume, profesor)
-        if not materie_id:
-            return jsonify({'error': 'Eroare la crearea materiei!'}), 500
-
         salveaza_material(materie_id, student_id, pdf_file.filename, text)
 
-        return jsonify({
-            'success': True,
-            'materie_id': materie_id,
-            'materie': materie_nume,
-            'caractere': len(text),
-            'mesaj': f'PDF procesat! {len(text)} caractere extrase.'
-        })
+        return jsonify({'success': True, 'caractere': len(text)})
 
     except Exception as e:
         print(f"[UPLOAD] Eroare: {e}")
-        return jsonify({'error': f'Eroare la procesarea PDF-ului: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/carti', methods=['GET'])
 def get_carti():
     student_id = request.args.get('student_id', 'default')
     materii = get_materii(student_id)
-    result = []
-    for m in materii:
-        result.append({
-            'materie_id': m['id'],
-            'materie_nume': m['nume'],
-            'profesor': m.get('profesor', ''),
-            'created_at': str(m['created_at'])
-        })
-    return jsonify(result)
+    return jsonify([{
+        'materie_id': m['id'], 'materie_nume': m['nume'],
+        'profesor': m.get('profesor', ''), 'created_at': str(m['created_at'])
+    } for m in materii])
 
 
 if __name__ == '__main__':
